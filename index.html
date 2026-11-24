@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🌷 두근두근 축제달력 - 확장 데이터 시각화 대시보드</title>
+  <title>K-FESTIVAL ARCHIVE — 대한민국 축제 데이터 매거진</title>
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Google Fonts: Noto Sans KR & Pretendard -->
+  <!-- Google Fonts (Noto Serif KR) & Pretendard -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
 
   <script>
@@ -20,20 +20,17 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['Pretendard', 'Noto Sans KR', 'sans-serif'],
+            sans: ['Pretendard', '-apple-system', 'sans-serif'],
+            serif: ['"Noto Serif KR"', 'serif'],
           },
           colors: {
-            cream: '#FFFDF9',
-            blush: '#FFF3F6',
-            coral: '#FF6B8B',
-            roseDark: '#D6456B',
-            peach: '#FF9E7D',
-            mint: '#4ECDC4',
-            ink: '#2D2628',
-          },
-          boxShadow: {
-            soft: '0 8px 28px -6px rgba(214, 69, 107, 0.10)',
-            card: '0 4px 20px -2px rgba(45, 38, 40, 0.05)',
+            paper: '#F5F2EB',
+            paperDark: '#EAE5DA',
+            ink: '#1C1917',
+            muted: '#78716C',
+            pine: '#1B4D3E',
+            terracotta: '#E05A36',
+            ochre: '#D97706',
           }
         }
       }
@@ -42,327 +39,395 @@
 
   <style>
     body {
-      background-color: #FFFDF9;
-      color: #2D2628;
-      font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+      background-color: #F5F2EB;
+      color: #1C1917;
+      font-family: 'Pretendard', sans-serif;
     }
 
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: #FFF3F6; }
-    ::-webkit-scrollbar-thumb { background: #FFB3C3; border-radius: 9999px; }
-    ::-webkit-scrollbar-thumb:hover { background: #FF6B8B; }
+    .editorial-card {
+      background-color: #FFFFFF;
+      border: 1px solid #DFD9CD;
+      box-shadow: 0 4px 20px -8px rgba(28, 25, 23, 0.08);
+    }
 
-    .calendar-day {
+    .region-tile {
       transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
     }
-    .calendar-day:hover:not(.empty-day) {
+    .region-tile:hover {
       transform: translateY(-2px);
-      border-color: #FF6B8B;
-      background-color: #FFF8FA;
+      border-color: #1B4D3E;
     }
-    .calendar-day.selected-day {
-      background: linear-gradient(135deg, #FFF0F4 0%, #FFE3EA 100%);
-      border: 2px solid #FF6B8B;
-      box-shadow: 0 6px 16px -4px rgba(255, 107, 139, 0.28);
+    .region-tile.active-tile {
+      border: 2px solid #E05A36 !important;
+      box-shadow: 0 6px 14px -4px rgba(224, 90, 54, 0.35);
     }
 
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(10px); }
+    .cal-cell {
+      transition: all 0.16s ease;
+    }
+    .cal-cell:hover:not(.cal-empty) {
+      border-color: #1B4D3E;
+      background-color: #F9F7F3;
+    }
+    .cal-cell.cal-selected {
+      background-color: #1B4D3E !important;
+      color: #FFFFFF !important;
+      border-color: #1B4D3E !important;
+    }
+
+    @keyframes enterUp {
+      from { opacity: 0; transform: translateY(16px); }
       to { opacity: 1; transform: translateY(0); }
     }
-    .animate-fade-up { animation: fadeUp 0.35s ease-out forwards; }
+    .animate-enter {
+      animation: enterUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: #EAE5DA; }
+    ::-webkit-scrollbar-thumb { background: #B8B0A2; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #1B4D3E; }
   </style>
 </head>
-<body class="min-h-screen antialiased selection:bg-coral/20 selection:text-roseDark">
+<body class="min-h-screen antialiased selection:bg-terracotta/20 selection:text-terracotta">
 
   <!-- 토스트 알림 -->
-  <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+  <div id="toastBox" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
 
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+  <!-- =========================================================================
+       VIEW 1: 매거진 랜딩 커버 화면 (버튼 클릭 시 입장)
+       ========================================================================= -->
+  <section id="landingView" class="min-h-screen flex items-center justify-center px-4 py-10">
+    <div class="max-w-4xl w-full editorial-card rounded-3xl p-7 sm:p-12 relative overflow-hidden animate-enter">
+      <!-- 상단 매거진 메타 바 -->
+      <div class="flex flex-wrap items-center justify-between gap-2 pb-5 border-b border-stone-200 text-xs font-bold tracking-widest uppercase text-muted">
+        <span>ISSUE NO. 2026 · KOREA TRAVEL DATA</span>
+        <span class="px-3 py-1 rounded-full bg-paper text-pine border border-stone-300">50 CURATED FESTIVALS</span>
+      </div>
 
-    <!-- 1. 헤더 및 컨트롤 바 -->
-    <header class="bg-white/90 backdrop-blur-md border border-pink-100 rounded-2xl p-5 sm:p-7 shadow-soft mb-7">
-      <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
-        <div>
-          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blush text-roseDark text-xs font-bold mb-2">
-            <span>TourAPI 2.0 확장 시각화 대시보드</span>
-            <span id="dataSourceBadge" class="px-2 py-0.5 rounded-full bg-white text-coral border border-pink-200">샘플 데이터 모드</span>
-          </div>
-          <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-ink flex items-center gap-2">
-            <span>🌷 두근두근 축제달력</span>
+      <!-- 메인 타이틀 & 소개 -->
+      <div class="py-8 sm:py-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        <div class="lg:col-span-7 space-y-5">
+          <span class="inline-block text-xs font-extrabold tracking-wider text-terracotta bg-orange-50 border border-orange-200 px-3 py-1 rounded-full">
+            대한민국 전국 축제 아카이브
+          </span>
+          <h1 class="font-serif text-3xl sm:text-5xl font-black text-ink leading-[1.22] tracking-tight">
+            계절의 빛과 색을 걷는<br/>
+            <span class="text-pine">전국 축제 데이터 북</span>
           </h1>
-          <p class="text-sm sm:text-base text-gray-500 mt-1">
-            지역·일별 밀집도·기간 분포·일정 타임라인까지 한눈에 보는 축제 데이터 시각화
+          <p class="text-sm sm:text-base text-stone-600 leading-relaxed">
+            봄의 벚꽃부터 늦가을의 빛과 국화까지, 대한민국 17개 시·도의 다채로운 축제를 한반도 타일 지도·테마 분석·일별 밀집도 스펙트럼과 함께 한눈에 탐색해 보세요.
           </p>
+
+          <!-- 주요 입장 버튼 -->
+          <div class="pt-2 flex flex-wrap items-center gap-3">
+            <button id="enterDashboardBtn" type="button" class="group inline-flex items-center gap-3 px-7 py-4 rounded-2xl bg-pine hover:bg-ink text-white font-bold text-base shadow-lg shadow-pine/20 transition active:scale-95">
+              <span>아카이브 입장하기</span>
+              <span class="inline-block transition-transform group-hover:translate-x-1">→</span>
+            </button>
+            <button onclick="enterWithSeason('ALL_SEASONS')" type="button" class="px-5 py-4 rounded-2xl border border-stone-300 bg-paper hover:bg-paperDark text-ink font-bold text-sm transition">
+              전체 50건 통합 보기
+            </button>
+          </div>
         </div>
 
-        <!-- 컨트롤 그룹 -->
-        <div class="flex flex-wrap items-center gap-3">
-          <!-- 키워드 검색 -->
-          <div class="relative flex-1 sm:flex-initial min-w-[190px]">
-            <input
-              id="searchInput"
-              type="text"
-              placeholder="🔍 축제명·테마 검색 (예: 국화)"
-              class="w-full sm:w-52 bg-white border border-pink-200 focus:border-coral text-ink font-medium text-sm rounded-2xl px-4 py-3 pr-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-coral/20 transition"
-            />
-            <button id="clearSearchBtn" type="button" class="hidden absolute inset-y-0 right-2.5 items-center text-gray-400 hover:text-roseDark text-xs font-bold">✕</button>
-          </div>
-
-          <!-- 월 선택 -->
-          <div class="flex items-center bg-blush/70 p-1.5 rounded-2xl border border-pink-100">
-            <button id="prevMonthBtn" type="button" aria-label="이전 달" class="p-2.5 rounded-xl hover:bg-white text-roseDark transition active:scale-95">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+        <!-- 우측 요약 인덱스 박스 -->
+        <div class="lg:col-span-5 bg-paper rounded-2xl p-5 sm:p-6 border border-stone-200 space-y-4">
+          <p class="text-xs font-extrabold uppercase tracking-widest text-muted">Quick Season Entry</p>
+          <div class="space-y-2.5">
+            <button onclick="enterWithSeason('2026-04')" type="button" class="w-full flex items-center justify-between p-3.5 rounded-xl bg-white border border-stone-200 hover:border-terracotta transition text-left group">
+              <div>
+                <span class="text-xs font-bold text-terracotta">APRIL · 12건</span>
+                <p class="text-sm font-extrabold text-ink">🌸 봄꽃·벚꽃·튤립 시즌</p>
+              </div>
+              <span class="text-stone-400 group-hover:text-terracotta font-bold">→</span>
             </button>
-            <select id="monthSelect" aria-label="조회 월 선택" class="bg-transparent font-bold text-ink text-sm sm:text-base px-2.5 py-1.5 focus:outline-none cursor-pointer">
-              <option value="ALL_SEASONS">✨ 전체 시즌 통합 (50건)</option>
-              <option value="2026-04">2026년 4월 (봄꽃 시즌)</option>
-              <option value="2026-05">2026년 5월 (가정의 달)</option>
-              <option value="2026-10">2026년 10월 (가을 단풍)</option>
-              <option value="2026-11" selected>2026년 11월 (늦가을·빛축제)</option>
-            </select>
-            <button id="nextMonthBtn" type="button" aria-label="다음 달" class="p-2.5 rounded-xl hover:bg-white text-roseDark transition active:scale-95">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+
+            <button onclick="enterWithSeason('2026-05')" type="button" class="w-full flex items-center justify-between p-3.5 rounded-xl bg-white border border-stone-200 hover:border-pine transition text-left group">
+              <div>
+                <span class="text-xs font-bold text-pine">MAY · 10건</span>
+                <p class="text-sm font-extrabold text-ink">🌿 가정의 달·장미·전통</p>
+              </div>
+              <span class="text-stone-400 group-hover:text-pine font-bold">→</span>
+            </button>
+
+            <button onclick="enterWithSeason('2026-10')" type="button" class="w-full flex items-center justify-between p-3.5 rounded-xl bg-white border border-stone-200 hover:border-ochre transition text-left group">
+              <div>
+                <span class="text-xs font-bold text-ochre">OCTOBER · 13건</span>
+                <p class="text-sm font-extrabold text-ink">🍁 가을 단풍·불꽃·유등</p>
+              </div>
+              <span class="text-stone-400 group-hover:text-ochre font-bold">→</span>
+            </button>
+
+            <button onclick="enterWithSeason('2026-11')" type="button" class="w-full flex items-center justify-between p-3.5 rounded-xl bg-white border border-stone-200 hover:border-pine transition text-left group">
+              <div>
+                <span class="text-xs font-bold text-pine">NOVEMBER · 15건</span>
+                <p class="text-sm font-extrabold text-ink">✨ 늦가을·국화·빛축제</p>
+              </div>
+              <span class="text-stone-400 group-hover:text-pine font-bold">→</span>
             </button>
           </div>
+        </div>
+      </div>
 
-          <!-- 지역 필터 -->
-          <div class="relative flex-1 sm:flex-initial">
-            <select id="regionSelect" aria-label="지역 필터" class="w-full sm:w-40 appearance-none bg-white border border-pink-200 hover:border-coral text-ink font-semibold text-sm rounded-2xl px-4 py-3 pr-9 shadow-sm focus:outline-none focus:ring-2 focus:ring-coral/30 cursor-pointer transition">
-              <option value="ALL">🗺️ 전체 지역</option>
-              <option value="1">서울</option>
-              <option value="31">경기</option>
-              <option value="32">강원</option>
-              <option value="34">충남</option>
-              <option value="33">충북</option>
-              <option value="37">전북</option>
-              <option value="38">전남</option>
-              <option value="35">경북</option>
-              <option value="36">경남</option>
-              <option value="39">제주</option>
-              <option value="2">인천</option>
-              <option value="6">부산</option>
-              <option value="4">대구</option>
-              <option value="3">대전</option>
-              <option value="5">광주</option>
-              <option value="7">울산</option>
-            </select>
-            <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-coral">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      <!-- 하단 푸터 정보 -->
+      <div class="pt-5 border-t border-stone-200 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+        <span>Data Powered by 한국관광공사 TourAPI 2.0 (Sample + Live)</span>
+        <span>Interactive Map · Radar · Timeline · Calendar</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       VIEW 2: 메인 데이터 시각화 대시보드
+       ========================================================================= -->
+  <main id="dashboardView" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-9 space-y-6 animate-enter">
+
+    <!-- 1. 상단 에디토리얼 헤더 -->
+    <header class="editorial-card rounded-2xl p-5 sm:p-6">
+      <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div class="flex items-start sm:items-center gap-3.5">
+          <button id="backToCoverBtn" type="button" title="표지 화면으로 돌아가기" class="shrink-0 px-3.5 py-2.5 rounded-xl bg-paper hover:bg-paperDark border border-stone-300 text-xs font-bold text-ink transition active:scale-95">
+            ← 커버로
+          </button>
+          <div>
+            <div class="flex items-center gap-2 mb-0.5">
+              <span class="text-[11px] font-extrabold tracking-widest uppercase text-terracotta">K-FESTIVAL ARCHIVE</span>
+              <span id="sourceBadge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-paper border border-stone-300 text-pine">SAMPLE 50</span>
             </div>
+            <h1 class="font-serif text-xl sm:text-2xl font-black text-ink">대한민국 축제 데이터 리포트</h1>
+          </div>
+        </div>
+
+        <!-- 컨트롤 바 -->
+        <div class="flex flex-wrap items-center gap-2.5">
+          <input
+            id="searchInput"
+            type="text"
+            placeholder="🔍 축제명·지역 검색"
+            class="flex-1 sm:flex-initial sm:w-48 bg-paper border border-stone-300 focus:border-pine text-ink text-sm rounded-xl px-3.5 py-2.5 outline-none transition"
+          />
+
+          <div class="flex items-center bg-paper border border-stone-300 rounded-xl p-1">
+            <button id="prevMonthBtn" type="button" class="px-2.5 py-1.5 rounded-lg hover:bg-white text-ink text-xs font-bold transition">◀</button>
+            <select id="monthSelect" class="bg-transparent text-sm font-extrabold text-ink px-2 py-1 outline-none cursor-pointer">
+              <option value="ALL_SEASONS">✨ 전체 시즌 (50건)</option>
+              <option value="2026-04">2026.04 봄꽃</option>
+              <option value="2026-05">2026.05 가정의달</option>
+              <option value="2026-10">2026.10 가을단풍</option>
+              <option value="2026-11" selected>2026.11 빛·국화</option>
+            </select>
+            <button id="nextMonthBtn" type="button" class="px-2.5 py-1.5 rounded-lg hover:bg-white text-ink text-xs font-bold transition">▶</button>
           </div>
 
-          <!-- 필터 초기화 -->
-          <button id="resetFilterBtn" type="button" class="hidden items-center gap-1.5 px-4 py-3 rounded-2xl bg-roseDark text-white text-sm font-semibold shadow-sm hover:bg-coral transition active:scale-95">
-            <span>초기화</span>
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          <button id="resetAllBtn" type="button" class="hidden px-3.5 py-2.5 rounded-xl bg-terracotta text-white text-xs font-bold hover:opacity-90 transition">
+            필터 초기화 ✕
           </button>
         </div>
       </div>
     </header>
 
-    <!-- 2. 데이터 시각화 대시보드 섹션 -->
-    <section aria-label="축제 통계 및 시각화" class="mb-8 space-y-6">
-      <!-- 2-1. KPI 요약 카드 4종 -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-        <div class="bg-white rounded-2xl p-5 border border-pink-100 shadow-card flex items-center justify-between">
+    <!-- 2. 에디토리얼 넘버링 KPI 4종 -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="editorial-card rounded-2xl p-5 flex flex-col justify-between">
+        <div class="flex items-center justify-between text-xs font-bold text-muted">
+          <span>조회 축제 수</span>
+          <span class="font-serif text-stone-300 text-base">01</span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-1.5">
+          <span id="kpiCount" class="font-serif text-3xl sm:text-4xl font-black text-pine">0</span>
+          <span class="text-xs font-bold text-ink">건</span>
+        </div>
+        <p id="kpiCountSub" class="text-xs text-muted mt-1.5 truncate">전국 기준</p>
+      </div>
+
+      <div class="editorial-card rounded-2xl p-5 flex flex-col justify-between">
+        <div class="flex items-center justify-between text-xs font-bold text-muted">
+          <span>최다 개최 지역</span>
+          <span class="font-serif text-stone-300 text-base">02</span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span id="kpiTopRegion" class="font-serif text-2xl sm:text-3xl font-black text-ink">-</span>
+          <span id="kpiTopRegionBadge" class="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-50 text-terracotta border border-orange-200">0건</span>
+        </div>
+        <p id="kpiTopRegionRatio" class="text-xs text-muted mt-1.5">점유율 0%</p>
+      </div>
+
+      <div class="editorial-card rounded-2xl p-5 flex flex-col justify-between">
+        <div class="flex items-center justify-between text-xs font-bold text-muted">
+          <span id="kpiPeakTitle">최대 밀집일</span>
+          <span class="font-serif text-stone-300 text-base">03</span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span id="kpiPeakDay" class="font-serif text-xl sm:text-2xl font-black text-terracotta">-</span>
+          <span id="kpiPeakVal" class="text-xs font-bold px-2 py-0.5 rounded-full bg-paper border border-stone-300 text-ink">0개</span>
+        </div>
+        <p id="kpiAvgDays" class="text-xs text-muted mt-1.5">평균 기간 0일</p>
+      </div>
+
+      <div class="editorial-card rounded-2xl p-5 flex flex-col justify-between">
+        <div class="flex items-center justify-between text-xs font-bold text-muted">
+          <span>대표 테마</span>
+          <span class="font-serif text-stone-300 text-base">04</span>
+        </div>
+        <div class="mt-2">
+          <span id="kpiTopTheme" class="font-serif text-xl sm:text-2xl font-black text-ink">-</span>
+        </div>
+        <p id="kpiWeekendShare" class="text-xs text-muted mt-1.5">주말 포함 비율 계산 중</p>
+      </div>
+    </section>
+
+    <!-- 3. 시각화 그리드 (한반도 타일 지도 + 권역 비중 + 테마 분석) -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <!-- 3-1. 대한민국 타일 히트맵 -->
+      <div class="lg:col-span-5 editorial-card rounded-2xl p-5 sm:p-6 flex flex-col">
+        <div class="flex items-center justify-between mb-4">
           <div>
-            <p class="text-xs font-semibold text-gray-500">조회된 축제 수</p>
-            <div class="flex items-baseline gap-1.5 mt-1">
-              <span id="kpiTotalCount" class="text-3xl font-extrabold text-roseDark">0</span>
-              <span class="text-sm font-bold text-gray-600">개</span>
-            </div>
-            <p id="kpiTotalSub" class="text-xs text-coral font-medium mt-1">전국 기준 진행 축제</p>
+            <h2 class="font-serif text-lg font-bold text-ink">🗺️ 전국 시·도 분포 지도</h2>
+            <p class="text-xs text-muted mt-0.5">지역 타일을 누르면 해당 지역으로 필터링됩니다</p>
           </div>
-          <div class="w-12 h-12 rounded-2xl bg-blush flex items-center justify-center text-2xl shrink-0">🎪</div>
+          <span id="mapSelectedTag" class="text-xs font-bold px-2.5 py-1 rounded-full bg-paper border border-stone-300 text-pine">전체</span>
         </div>
 
-        <div class="bg-white rounded-2xl p-5 border border-pink-100 shadow-card flex items-center justify-between">
-          <div>
-            <p class="text-xs font-semibold text-gray-500">최다 개최 지역</p>
-            <div class="flex items-baseline gap-2 mt-1">
-              <span id="kpiTopRegion" class="text-2xl font-extrabold text-ink">-</span>
-              <span id="kpiTopRegionCount" class="text-xs font-bold text-coral bg-blush px-2 py-0.5 rounded-full">0건</span>
-            </div>
-            <p id="kpiTopRegionSub" class="text-xs text-gray-400 mt-1">비율 계산 중</p>
-          </div>
-          <div class="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-2xl shrink-0">🏆</div>
-        </div>
+        <div id="koreaTileMap" class="grid grid-cols-5 gap-2 my-auto py-1"></div>
 
-        <div class="bg-white rounded-2xl p-5 border border-pink-100 shadow-card flex items-center justify-between">
-          <div>
-            <p id="kpiPeakLabelTitle" class="text-xs font-semibold text-gray-500">최대 동시 개최일 (피크)</p>
-            <div class="flex items-baseline gap-2 mt-1">
-              <span id="kpiPeakDay" class="text-xl font-extrabold text-teal-600">-</span>
-              <span id="kpiPeakCount" class="text-xs font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">0개</span>
-            </div>
-            <p id="kpiAvgDuration" class="text-xs text-gray-400 mt-1">평균 개최 기간 0일</p>
+        <div class="flex items-center justify-between text-[11px] text-muted mt-4 pt-3 border-t border-stone-200">
+          <span>적음</span>
+          <div class="flex items-center gap-1.5">
+            <span class="w-4 h-2.5 rounded bg-paper border border-stone-300"></span>
+            <span class="w-4 h-2.5 rounded bg-emerald-100 border border-emerald-300"></span>
+            <span class="w-4 h-2.5 rounded bg-pine/80 border border-pine"></span>
+            <span class="w-4 h-2.5 rounded bg-terracotta border border-terracotta"></span>
           </div>
-          <div class="w-12 h-12 rounded-2xl bg-teal-50 flex items-center justify-center text-2xl shrink-0">📈</div>
-        </div>
-
-        <div class="bg-white rounded-2xl p-5 border border-pink-100 shadow-card flex items-center justify-between">
-          <div>
-            <p class="text-xs font-semibold text-gray-500">주요 축제 유형 (기간)</p>
-            <div class="flex items-baseline gap-2 mt-1">
-              <span id="kpiDurationMode" class="text-xl font-extrabold text-purple-600">-</span>
-              <span id="kpiDurationModeRatio" class="text-xs font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full">0%</span>
-            </div>
-            <p id="kpiLongestText" class="text-xs text-gray-400 mt-1 truncate max-w-[170px]">최장 기간: -</p>
-          </div>
-          <div class="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center text-2xl shrink-0">⏱️</div>
+          <span>최다 집중</span>
         </div>
       </div>
 
-      <!-- 2-2. 1행 차트: 지역별 분포 + 일별/월별 추이 -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        <div class="lg:col-span-5 bg-white rounded-2xl p-5 sm:p-6 border border-pink-100 shadow-card flex flex-col">
-          <div class="flex items-start justify-between gap-2 mb-4">
-            <div>
-              <h2 class="text-base sm:text-lg font-bold text-ink">📊 지역별 축제 현황</h2>
-              <p class="text-xs text-gray-400 mt-0.5">막대를 클릭하면 해당 지역으로 필터링됩니다</p>
-            </div>
-            <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-blush text-roseDark shrink-0">내림차순</span>
-          </div>
-          <div class="relative flex-1 min-h-[260px] w-full">
-            <canvas id="regionBarChart"></canvas>
-          </div>
+      <!-- 3-2. 권역별 Polar Area -->
+      <div class="lg:col-span-3 editorial-card rounded-2xl p-5 sm:p-6 flex flex-col">
+        <div class="mb-3">
+          <h2 class="font-serif text-lg font-bold text-ink">🧭 권역별 비중</h2>
+          <p class="text-xs text-muted mt-0.5">5대 권역 분포 비교</p>
         </div>
-
-        <div class="lg:col-span-7 bg-white rounded-2xl p-5 sm:p-6 border border-pink-100 shadow-card flex flex-col">
-          <div class="flex items-start justify-between gap-2 mb-4">
-            <div>
-              <h2 id="trendChartTitle" class="text-base sm:text-lg font-bold text-ink">🗓️ 일별 축제 밀집도 추이</h2>
-              <p id="trendChartSub" class="text-xs text-gray-400 mt-0.5">날짜별 동시 개최 축제 수 (포인트 클릭 시 해당 날짜 선택)</p>
-            </div>
-            <div class="flex items-center gap-2 text-xs text-gray-500 shrink-0">
-              <span class="inline-block w-2.5 h-2.5 rounded-full bg-coral"></span>
-              <span>진행 축제 수</span>
-            </div>
-          </div>
-          <div class="relative flex-1 min-h-[260px] w-full">
-            <canvas id="dailyTrendChart"></canvas>
-          </div>
+        <div class="relative flex-1 min-h-[250px]">
+          <canvas id="macroPolarChart"></canvas>
         </div>
       </div>
 
-      <!-- 2-3. 2행 신규 차트: 축제 기간 유형 도넛 차트 + 일정 타임라인(간트) 차트 -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        <!-- 기간 유형 도넛 차트 -->
-        <div class="lg:col-span-4 bg-white rounded-2xl p-5 sm:p-6 border border-pink-100 shadow-card flex flex-col">
-          <div class="mb-4">
-            <h2 class="text-base sm:text-lg font-bold text-ink">🍩 축제 기간별 비중</h2>
-            <p class="text-xs text-gray-400 mt-0.5">단기(1~3일) / 중기(4~10일) / 장기(11일+) 비율</p>
+      <!-- 3-3. 테마 분석 막대 -->
+      <div class="lg:col-span-4 editorial-card rounded-2xl p-5 sm:p-6 flex flex-col">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <h2 class="font-serif text-lg font-bold text-ink">🏷️ 테마 키워드 분석</h2>
+            <p class="text-xs text-muted mt-0.5">막대 클릭 시 해당 테마로 필터링</p>
           </div>
-          <div class="relative flex-1 min-h-[240px] flex items-center justify-center">
-            <canvas id="durationDoughnutChart"></canvas>
-          </div>
+          <span id="themeFilterBadge" class="hidden text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-50 text-terracotta border border-orange-200">필터 적용됨</span>
         </div>
-
-        <!-- 일정 타임라인 간트 차트 -->
-        <div class="lg:col-span-8 bg-white rounded-2xl p-5 sm:p-6 border border-pink-100 shadow-card flex flex-col">
-          <div class="flex items-start justify-between gap-2 mb-4">
-            <div>
-              <h2 id="ganttChartTitle" class="text-base sm:text-lg font-bold text-ink">📅 축제 일정 타임라인 (간트 차트)</h2>
-              <p id="ganttChartSub" class="text-xs text-gray-400 mt-0.5">각 축제의 시작일~종료일 겹침 구간을 확인하고, 막대를 클릭해 날짜로 이동하세요</p>
-            </div>
-            <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-teal-50 text-teal-700 shrink-0">Timeline</span>
-          </div>
-          <div id="ganttWrapper" class="relative flex-1 min-h-[260px] w-full">
-            <canvas id="ganttTimelineChart"></canvas>
-          </div>
+        <div class="relative flex-1 min-h-[250px]">
+          <canvas id="themeBarChart"></canvas>
         </div>
       </div>
     </section>
 
-    <!-- 3. 인터랙티브 월별 달력 & 선택한 날짜의 축제 목록 -->
-    <section aria-label="월별 축제 달력 및 상세 목록" class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-10">
-      <div class="lg:col-span-7 bg-white rounded-2xl p-5 sm:p-6 border border-pink-100 shadow-card">
-        <div class="flex flex-wrap items-center justify-between gap-2 mb-5">
-          <div>
-            <h2 id="calendarHeaderTitle" class="text-lg sm:text-xl font-extrabold text-ink">2026년 11월 축제 달력</h2>
-            <p id="calendarHeaderSub" class="text-xs text-gray-400 mt-0.5">날짜를 클릭해 당일 열리는 축제를 확인하세요</p>
-          </div>
-          <div class="flex items-center gap-3 text-xs font-medium text-gray-500">
-            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-coral"></span>축제 있음</span>
-            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-400"></span>축제 3개+</span>
-          </div>
+    <!-- 4. 일별/시즌별 밀집도 추이 -->
+    <section class="editorial-card rounded-2xl p-5 sm:p-6">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <div>
+          <h2 id="spectrumTitle" class="font-serif text-lg font-bold text-ink">📈 일별 축제 밀집도 추이</h2>
+          <p id="spectrumSub" class="text-xs text-muted mt-0.5">포인트를 클릭하면 아래 달력에서 해당 날짜가 선택됩니다</p>
         </div>
-
-        <div class="grid grid-cols-7 gap-1.5 sm:gap-2 text-center text-xs font-bold mb-2">
-          <div class="py-1.5 text-rose-500">일</div>
-          <div class="py-1.5 text-gray-500">월</div>
-          <div class="py-1.5 text-gray-500">화</div>
-          <div class="py-1.5 text-gray-500">수</div>
-          <div class="py-1.5 text-gray-500">목</div>
-          <div class="py-1.5 text-gray-500">금</div>
-          <div class="py-1.5 text-blue-500">토</div>
+        <div class="flex items-center gap-2 text-xs text-muted">
+          <span class="w-2.5 h-2.5 rounded-full bg-pine inline-block"></span>
+          <span>진행 중인 축제 수</span>
         </div>
-
-        <div id="calendarGrid" class="grid grid-cols-7 gap-1.5 sm:gap-2"></div>
       </div>
-
-      <div class="lg:col-span-5 bg-white rounded-2xl p-5 sm:p-6 border border-pink-100 shadow-card flex flex-col max-h-[680px]">
-        <div class="flex items-center justify-between gap-2 pb-4 border-b border-pink-100">
-          <div>
-            <span id="selectedDateBadge" class="inline-block text-xs font-bold text-roseDark bg-blush px-2.5 py-0.5 rounded-full mb-1">
-              2026년 11월 14일 (토)
-            </span>
-            <h2 id="listPanelTitle" class="text-lg font-extrabold text-ink">선택한 날짜의 축제 목록</h2>
-          </div>
-          <span id="selectedDateCount" class="text-sm font-extrabold text-coral bg-pink-50 border border-pink-200 px-3 py-1 rounded-xl">
-            0건
-          </span>
-        </div>
-
-        <div id="festivalListContainer" class="mt-4 space-y-3.5 overflow-y-auto pr-1 flex-1"></div>
+      <div class="relative h-[220px] w-full">
+        <canvas id="spectrumChart"></canvas>
       </div>
     </section>
 
-    <!-- 4. 한국관광공사 TourAPI 실시간 연동 설정 패널 -->
-    <footer class="bg-white rounded-2xl border border-pink-200/80 shadow-card overflow-hidden">
-      <button id="toggleApiPanelBtn" type="button" class="w-full px-5 sm:px-7 py-4 flex items-center justify-between text-left bg-gradient-to-r from-blush/80 to-cream hover:from-blush transition">
-        <div class="flex items-center gap-2.5">
+    <!-- 5. 달력 & 선택 날짜 축제 피드 -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div class="lg:col-span-7 editorial-card rounded-2xl p-5 sm:p-6">
+        <div class="mb-4">
+          <h2 id="calTitle" class="font-serif text-lg sm:text-xl font-bold text-ink">2026년 11월 축제 달력</h2>
+          <p id="calSub" class="text-xs text-muted mt-0.5">날짜를 눌러 당일 열리는 축제 목록을 확인하세요</p>
+        </div>
+        <div id="calWeekHeader" class="grid grid-cols-7 gap-1.5 text-center text-xs font-bold mb-2 text-muted">
+          <div class="text-terracotta">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div class="text-pine">토</div>
+        </div>
+        <div id="calGrid" class="grid grid-cols-7 gap-1.5 sm:gap-2"></div>
+      </div>
+
+      <div class="lg:col-span-5 editorial-card rounded-2xl p-5 sm:p-6 flex flex-col max-h-[620px]">
+        <div class="flex items-center justify-between pb-4 border-b border-stone-200">
+          <div>
+            <span id="selectedDatePill" class="inline-block text-xs font-bold text-pine bg-paper border border-stone-300 px-2.5 py-0.5 rounded-full mb-1">2026.11.14 (토)</span>
+            <h2 id="feedTitle" class="font-serif text-lg font-bold text-ink">선택 날짜 축제 목록</h2>
+          </div>
+          <span id="feedCount" class="text-sm font-extrabold text-terracotta bg-orange-50 border border-orange-200 px-3 py-1 rounded-xl">0건</span>
+        </div>
+        <div id="festivalFeed" class="mt-4 space-y-3 overflow-y-auto pr-1 flex-1"></div>
+      </div>
+    </section>
+
+    <!-- 6. TourAPI 2.0 실시간 연동 패널 -->
+    <footer class="editorial-card rounded-2xl overflow-hidden">
+      <button id="apiToggleBtn" type="button" class="w-full px-6 py-4 flex items-center justify-between text-left bg-paper/60 hover:bg-paper transition">
+        <div class="flex items-center gap-3">
           <span class="text-xl">🔑</span>
           <div>
-            <h3 class="text-sm sm:text-base font-bold text-ink">한국관광공사 TourAPI (searchFestival2) 실시간 연동 설정</h3>
-            <p class="text-xs text-gray-500">공공데이터포털 일반 인증키(Decoding)를 입력하면 실제 전국 축제 데이터로 모든 차트와 달력이 즉시 갱신됩니다.</p>
+            <h3 class="text-sm sm:text-base font-bold text-ink">한국관광공사 TourAPI 2.0 실시간 연동 설정</h3>
+            <p class="text-xs text-muted">공공데이터포털 인증키(Decoding)를 입력하면 실제 전국 축제 데이터로 갱신됩니다</p>
           </div>
         </div>
-        <svg id="apiPanelChevron" class="w-5 h-5 text-roseDark transform transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-        </svg>
+        <span id="apiArrow" class="text-pine font-bold transition-transform">▼</span>
       </button>
-
-      <div id="apiPanelBody" class="hidden px-5 sm:px-7 py-6 border-t border-pink-100 bg-white">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-end">
-          <div class="lg:col-span-7">
-            <label for="apiKeyInput" class="block text-xs font-bold text-gray-700 mb-1.5">
-              공공데이터포털 일반 인증키 (Decoding 키 권장)
-            </label>
-            <input
-              id="apiKeyInput"
-              type="password"
-              placeholder="발급받은 인증키를 붙여넣어 주세요"
-              class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-coral focus:ring-2 focus:ring-coral/20 text-sm outline-none transition"
-            />
-          </div>
-          <div class="lg:col-span-5 flex flex-wrap sm:flex-nowrap gap-2.5">
-            <button id="fetchLiveApiBtn" type="button" class="flex-1 bg-coral hover:bg-roseDark text-white font-bold text-sm px-5 py-3 rounded-xl shadow-sm transition active:scale-95 flex items-center justify-center gap-2">
-              <span id="fetchBtnSpinner" class="hidden animate-spin">⏳</span>
-              <span>실시간 데이터 불러오기</span>
-            </button>
-            <button id="restoreSampleBtn" type="button" class="px-4 py-3 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 font-semibold text-sm transition">
-              샘플 복원
-            </button>
-          </div>
+      <div id="apiBody" class="hidden px-6 py-5 border-t border-stone-200 bg-white flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+        <div class="flex-1">
+          <label for="apiKeyInput" class="block text-xs font-bold text-ink mb-1.5">공공데이터포털 일반 인증키 (Decoding)</label>
+          <input id="apiKeyInput" type="password" placeholder="인증키를 붙여넣어 주세요" class="w-full px-4 py-2.5 rounded-xl bg-paper border border-stone-300 focus:border-pine text-sm outline-none" />
         </div>
+        <button id="fetchApiBtn" type="button" class="px-5 py-2.5 rounded-xl bg-pine hover:bg-ink text-white font-bold text-sm transition">실시간 불러오기</button>
+        <button id="restoreBtn" type="button" class="px-4 py-2.5 rounded-xl border border-stone-300 hover:bg-paper text-ink font-semibold text-sm transition">샘플 복원</button>
       </div>
     </footer>
+  </main>
 
+  <!-- =========================================================================
+       MODAL: 축제 상세 정보 모달 (카드 클릭 시 열림)
+       ========================================================================= -->
+  <div id="detailModal" class="hidden fixed inset-0 z-50 bg-ink/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white border border-stone-200 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-enter">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex flex-wrap gap-1.5">
+          <span id="modalRegion" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-paper border border-stone-300 text-pine">지역</span>
+          <span id="modalTheme" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-50 border border-orange-200 text-terracotta">테마</span>
+        </div>
+        <button id="closeModalBtn" type="button" class="w-8 h-8 rounded-full bg-paper hover:bg-paperDark text-ink font-bold text-sm flex items-center justify-center">✕</button>
+      </div>
+      <h3 id="modalTitle" class="font-serif text-xl sm:text-2xl font-black text-ink leading-snug">축제 제목</h3>
+      <div class="bg-paper rounded-2xl p-4 space-y-2 text-sm border border-stone-200">
+        <p class="flex items-center gap-2 font-semibold text-ink"><span>📅</span><span id="modalPeriod">2026.11.01 ~ 2026.11.15</span></p>
+        <p class="flex items-start gap-2 text-stone-600"><span>📍</span><span id="modalAddr">주소 정보</span></p>
+        <p id="modalTelRow" class="flex items-center gap-2 text-stone-600"><span>📞</span><span id="modalTel">-</span></p>
+      </div>
+      <div class="flex gap-2.5 pt-1">
+        <a id="modalMapLink" href="#" target="_blank" rel="noopener noreferrer" class="flex-1 text-center py-3 rounded-xl bg-pine hover:bg-ink text-white font-bold text-sm transition">
+          네이버 지도로 위치 보기 ↗
+        </a>
+        <button id="modalConfirmBtn" type="button" class="px-5 py-3 rounded-xl border border-stone-300 hover:bg-paper text-ink font-bold text-sm transition">
+          닫기
+        </button>
+      </div>
+    </div>
   </div>
 
   <script>
+    Chart.defaults.color = '#57534E';
+    Chart.defaults.borderColor = 'rgba(28, 25, 23, 0.08)';
+    Chart.defaults.font.family = "'Pretendard', sans-serif";
+
     const AREA_MAP = {
       "1": "서울", "2": "인천", "3": "대전", "4": "대구", "5": "광주",
       "6": "부산", "7": "울산", "8": "세종", "31": "경기", "32": "강원",
@@ -370,312 +435,333 @@
       "38": "전남", "39": "제주"
     };
 
+    const KOREA_TILE_LAYOUT = [
+      { code: "2", name: "인천", col: 1, row: 1 },
+      { code: "1", name: "서울", col: 2, row: 1 },
+      { code: "31", name: "경기", col: 3, row: 1 },
+      { code: "32", name: "강원", col: 4, row: 1 },
+      { code: "34", name: "충남", col: 1, row: 2 },
+      { code: "8", name: "세종", col: 2, row: 2 },
+      { code: "3", name: "대전", col: 3, row: 2 },
+      { code: "33", name: "충북", col: 4, row: 2 },
+      { code: "35", name: "경북", col: 5, row: 2 },
+      { code: "37", name: "전북", col: 1, row: 3 },
+      { code: "36", name: "경남", col: 3, row: 3 },
+      { code: "4", name: "대구", col: 4, row: 3 },
+      { code: "7", name: "울산", col: 5, row: 3 },
+      { code: "5", name: "광주", col: 1, row: 4 },
+      { code: "38", name: "전남", col: 2, row: 4 },
+      { code: "6", name: "부산", col: 4, row: 4 },
+      { code: "39", name: "제주", col: 2, row: 5 }
+    ];
+
+    const MACRO_REGIONS = {
+      "수도권": ["1", "2", "31"],
+      "강원권": ["32"],
+      "충청권": ["3", "8", "33", "34"],
+      "전라·제주": ["5", "37", "38", "39"],
+      "경상권": ["4", "6", "7", "35", "36"]
+    };
+
     const WEEKDAYS_KO = ["일", "월", "화", "수", "목", "금", "토"];
 
     const SAMPLE_FESTIVALS = {
       "2026-04": [
-        { contentid: "101", title: "진해군항제 벚꽃축제", areacode: "36", addr1: "경상남도 창원시 진해구 평안동", eventstartdate: "20260328", eventenddate: "20260406", firstimage: "", tel: "055-546-4310" },
-        { contentid: "102", title: "여의도 봄꽃축제", areacode: "1", addr1: "서울특별시 영등포구 여의서로", eventstartdate: "20260403", eventenddate: "20260408", firstimage: "", tel: "02-2670-3114" },
-        { contentid: "103", title: "석촌호수 벚꽃엔딩 페스티벌", areacode: "1", addr1: "서울특별시 송파구 잠실로 148", eventstartdate: "20260402", eventenddate: "20260407", firstimage: "", tel: "02-2147-2800" },
-        { contentid: "104", title: "경포 벚꽃잔치", areacode: "32", addr1: "강원특별자치도 강릉시 경포로 365", eventstartdate: "20260404", eventenddate: "20260410", firstimage: "", tel: "033-640-5807" },
-        { contentid: "105", title: "태안 세계튤립꽃박람회", areacode: "34", addr1: "충청남도 태안군 안면읍 꽃지해안로 400", eventstartdate: "20260408", eventenddate: "20260506", firstimage: "", tel: "041-675-5533" },
-        { contentid: "106", title: "에버랜드 튤립 & 로즈 가든 페스티벌", areacode: "31", addr1: "경기도 용인시 처인구 포곡읍 에버랜드로 199", eventstartdate: "20260401", eventenddate: "20260430", firstimage: "", tel: "031-320-5000" },
-        { contentid: "107", title: "고양국제꽃박람회", areacode: "31", addr1: "경기도 고양시 일산동구 호수로 595", eventstartdate: "20260424", eventenddate: "20260510", firstimage: "", tel: "031-908-7750" },
-        { contentid: "108", title: "제주 유채꽃 축제", areacode: "39", addr1: "제주특별자치도 서귀포시 표선면 녹산로", eventstartdate: "20260404", eventenddate: "20260412", firstimage: "", tel: "064-760-3942" },
-        { contentid: "109", title: "함평 나비대축제", areacode: "38", addr1: "전라남도 함평군 함평읍 곤재로 27", eventstartdate: "20260424", eventenddate: "20260505", firstimage: "", tel: "061-320-2238" },
-        { contentid: "110", title: "경주 대릉원돌담길 벚꽃축제", areacode: "35", addr1: "경상북도 경주시 황남동 일원", eventstartdate: "20260403", eventenddate: "20260405", firstimage: "", tel: "054-777-1330" },
-        { contentid: "111", title: "전주 완산꽃동산 철쭉제", areacode: "37", addr1: "전북특별자치도 전주시 완산구 동완산동", eventstartdate: "20260418", eventenddate: "20260426", firstimage: "", tel: "063-281-2114" },
-        { contentid: "112", title: "가평 자라섬 봄 꽃 페스타", areacode: "31", addr1: "경기도 가평군 가평읍 자라섬로 60", eventstartdate: "20260425", eventenddate: "20260524", firstimage: "", tel: "031-580-2064" }
+        { contentid: "101", title: "진해군항제 벚꽃축제", areacode: "36", addr1: "경상남도 창원시 진해구 평안동", eventstartdate: "20260328", eventenddate: "20260406", tel: "055-546-4310" },
+        { contentid: "102", title: "여의도 봄꽃축제", areacode: "1", addr1: "서울특별시 영등포구 여의서로", eventstartdate: "20260403", eventenddate: "20260408", tel: "02-2670-3114" },
+        { contentid: "103", title: "석촌호수 벚꽃엔딩 페스티벌", areacode: "1", addr1: "서울특별시 송파구 잠실로 148", eventstartdate: "20260402", eventenddate: "20260407", tel: "02-2147-2800" },
+        { contentid: "104", title: "경포 벚꽃잔치", areacode: "32", addr1: "강원특별자치도 강릉시 경포로 365", eventstartdate: "20260404", eventenddate: "20260410", tel: "033-640-5807" },
+        { contentid: "105", title: "태안 세계튤립꽃박람회", areacode: "34", addr1: "충청남도 태안군 안면읍 꽃지해안로 400", eventstartdate: "20260408", eventenddate: "20260506", tel: "041-675-5533" },
+        { contentid: "106", title: "에버랜드 튤립 & 로즈 가든 페스티벌", areacode: "31", addr1: "경기도 용인시 처인구 포곡읍 에버랜드로 199", eventstartdate: "20260401", eventenddate: "20260430", tel: "031-320-5000" },
+        { contentid: "107", title: "고양국제꽃박람회", areacode: "31", addr1: "경기도 고양시 일산동구 호수로 595", eventstartdate: "20260424", eventenddate: "20260510", tel: "031-908-7750" },
+        { contentid: "108", title: "제주 유채꽃 축제", areacode: "39", addr1: "제주특별자치도 서귀포시 표선면 녹산로", eventstartdate: "20260404", eventenddate: "20260412", tel: "064-760-3942" },
+        { contentid: "109", title: "함평 나비대축제", areacode: "38", addr1: "전라남도 함평군 함평읍 곤재로 27", eventstartdate: "20260424", eventenddate: "20260505", tel: "061-320-2238" },
+        { contentid: "110", title: "경주 대릉원돌담길 벚꽃축제", areacode: "35", addr1: "경상북도 경주시 황남동 일원", eventstartdate: "20260403", eventenddate: "20260405", tel: "054-777-1330" },
+        { contentid: "111", title: "전주 완산꽃동산 철쭉제", areacode: "37", addr1: "전북특별자치도 전주시 완산구 동완산동", eventstartdate: "20260418", eventenddate: "20260426", tel: "063-281-2114" },
+        { contentid: "112", title: "가평 자라섬 봄 꽃 페스타", areacode: "31", addr1: "경기도 가평군 가평읍 자라섬로 60", eventstartdate: "20260425", eventenddate: "20260524", tel: "031-580-2064" }
       ],
       "2026-05": [
-        { contentid: "201", title: "담양 대나무축제", areacode: "38", addr1: "전라남도 담양군 담양읍 죽녹원로 119", eventstartdate: "20260502", eventenddate: "20260506", firstimage: "", tel: "061-380-3150" },
-        { contentid: "202", title: "보성 다향대축제", areacode: "38", addr1: "전라남도 보성군 보성읍 녹차로 775", eventstartdate: "20260502", eventenddate: "20260506", firstimage: "", tel: "061-850-5211" },
-        { contentid: "203", title: "곡성 세계장미축제", areacode: "38", addr1: "전라남도 곡성군 오곡면 기차마을로 232", eventstartdate: "20260515", eventenddate: "20260524", firstimage: "", tel: "061-360-8471" },
-        { contentid: "204", title: "서울장미축제", areacode: "1", addr1: "서울특별시 중랑구 묵동 중랑장미공원", eventstartdate: "20260515", eventenddate: "20260523", firstimage: "", tel: "02-3407-6531" },
-        { contentid: "205", title: "남원 춘향제", areacode: "37", addr1: "전북특별자치도 남원시 요천로 1447", eventstartdate: "20260501", eventenddate: "20260505", firstimage: "", tel: "063-620-6161" },
-        { contentid: "206", title: "춘천 마임축제", areacode: "32", addr1: "강원특별자치도 춘천시 춘천로 112", eventstartdate: "20260524", eventenddate: "20260531", firstimage: "", tel: "033-242-0585" },
-        { contentid: "207", title: "연천 구석기축제", areacode: "31", addr1: "경기도 연천군 전곡읍 양연로 1510", eventstartdate: "20260502", eventenddate: "20260505", firstimage: "", tel: "031-839-2561" },
-        { contentid: "208", title: "이천 도자기축제", areacode: "31", addr1: "경기도 이천시 신둔면 도자예술로5번길 109", eventstartdate: "20260425", eventenddate: "20260506", firstimage: "", tel: "031-638-8609" },
-        { contentid: "209", title: "하동 야생차문화축제", areacode: "36", addr1: "경상남도 하동군 화개면 쌍계로 571-25", eventstartdate: "20260509", eventenddate: "20260512", firstimage: "", tel: "055-880-2381" },
-        { contentid: "210", title: "울산 대공원 장미축제", areacode: "7", addr1: "울산광역시 남구 대공원로 94", eventstartdate: "20260520", eventenddate: "20260524", firstimage: "", tel: "052-226-0300" }
+        { contentid: "201", title: "담양 대나무축제", areacode: "38", addr1: "전라남도 담양군 담양읍 죽녹원로 119", eventstartdate: "20260502", eventenddate: "20260506", tel: "061-380-3150" },
+        { contentid: "202", title: "보성 다향대축제", areacode: "38", addr1: "전라남도 보성군 보성읍 녹차로 775", eventstartdate: "20260502", eventenddate: "20260506", tel: "061-850-5211" },
+        { contentid: "203", title: "곡성 세계장미축제", areacode: "38", addr1: "전라남도 곡성군 오곡면 기차마을로 232", eventstartdate: "20260515", eventenddate: "20260524", tel: "061-360-8471" },
+        { contentid: "204", title: "서울장미축제", areacode: "1", addr1: "서울특별시 중랑구 묵동 중랑장미공원", eventstartdate: "20260515", eventenddate: "20260523", tel: "02-3407-6531" },
+        { contentid: "205", title: "남원 춘향제", areacode: "37", addr1: "전북특별자치도 남원시 요천로 1447", eventstartdate: "20260501", eventenddate: "20260505", tel: "063-620-6161" },
+        { contentid: "206", title: "춘천 마임축제", areacode: "32", addr1: "강원특별자치도 춘천시 춘천로 112", eventstartdate: "20260524", eventenddate: "20260531", tel: "033-242-0585" },
+        { contentid: "207", title: "연천 구석기축제", areacode: "31", addr1: "경기도 연천군 전곡읍 양연로 1510", eventstartdate: "20260502", eventenddate: "20260505", tel: "031-839-2561" },
+        { contentid: "208", title: "이천 도자기축제", areacode: "31", addr1: "경기도 이천시 신둔면 도자예술로5번길 109", eventstartdate: "20260425", eventenddate: "20260506", tel: "031-638-8609" },
+        { contentid: "209", title: "하동 야생차문화축제", areacode: "36", addr1: "경상남도 하동군 화개면 쌍계로 571-25", eventstartdate: "20260509", eventenddate: "20260512", tel: "055-880-2381" },
+        { contentid: "210", title: "울산 대공원 장미축제", areacode: "7", addr1: "울산광역시 남구 대공원로 94", eventstartdate: "20260520", eventenddate: "20260524", tel: "052-226-0300" }
       ],
       "2026-10": [
-        { contentid: "301", title: "진주남강유등축제", areacode: "36", addr1: "경상남도 진주시 남강로 626", eventstartdate: "20261003", eventenddate: "20261018", firstimage: "", tel: "055-755-9111" },
-        { contentid: "302", title: "안동 국제탈춤페스티벌", areacode: "35", addr1: "경상북도 안동시 육사로 239", eventstartdate: "20260925", eventenddate: "20261004", firstimage: "", tel: "054-841-6397" },
-        { contentid: "303", title: "서울세계불꽃축제", areacode: "1", addr1: "서울특별시 영등포구 여의동로 330", eventstartdate: "20261003", eventenddate: "20261003", firstimage: "", tel: "02-789-5252" },
-        { contentid: "304", title: "이태원 지구촌축제", areacode: "1", addr1: "서울특별시 용산구 이태원로 일대", eventstartdate: "20261010", eventenddate: "20261011", firstimage: "", tel: "02-797-7319" },
-        { contentid: "305", title: "수원화성문화제", areacode: "31", addr1: "경기도 수원시 팔달구 정조로 825", eventstartdate: "20261009", eventenddate: "20261011", firstimage: "", tel: "031-290-3572" },
-        { contentid: "306", title: "파주장단콩축제", areacode: "31", addr1: "경기도 파주시 문산읍 임진각로 148-53", eventstartdate: "20261023", eventenddate: "20261025", firstimage: "", tel: "031-940-5281" },
-        { contentid: "307", title: "평창 백일홍축제", areacode: "32", addr1: "강원특별자치도 평창군 평창읍 제방길 81", eventstartdate: "20261002", eventenddate: "20261011", firstimage: "", tel: "033-332-6061" },
-        { contentid: "308", title: "정선 아리랑제", areacode: "32", addr1: "강원특별자치도 정선군 정선읍 봉양리", eventstartdate: "20261002", eventenddate: "20261005", firstimage: "", tel: "033-563-2646" },
-        { contentid: "309", title: "임실N치즈축제", areacode: "37", addr1: "전북특별자치도 임실군 성수면 도인2길 50", eventstartdate: "20261008", eventenddate: "20261011", firstimage: "", tel: "063-643-3900" },
-        { contentid: "310", title: "순천만 갈대축제", areacode: "38", addr1: "전라남도 순천시 순천만길 513-25", eventstartdate: "20261023", eventenddate: "20261025", firstimage: "", tel: "061-749-6052" },
-        { contentid: "311", title: "백제문화제 (공주·부여)", areacode: "34", addr1: "충청남도 공주시 금벽로 368", eventstartdate: "20261003", eventenddate: "20261011", firstimage: "", tel: "041-635-6980" },
-        { contentid: "312", title: "부산국제록페스티벌", areacode: "6", addr1: "부산광역시 사상구 삼락생태공원", eventstartdate: "20261003", eventenddate: "20261004", firstimage: "", tel: "051-713-5000" },
-        { contentid: "313", title: "제주 억새꽃 물결 트레킹 페스타", areacode: "39", addr1: "제주특별자치도 서귀포시 표선면 따라비오름 일원", eventstartdate: "20261016", eventenddate: "20261025", firstimage: "", tel: "064-740-6000" }
+        { contentid: "301", title: "진주남강유등축제", areacode: "36", addr1: "경상남도 진주시 남강로 626", eventstartdate: "20261003", eventenddate: "20261018", tel: "055-755-9111" },
+        { contentid: "302", title: "안동 국제탈춤페스티벌", areacode: "35", addr1: "경상북도 안동시 육사로 239", eventstartdate: "20260925", eventenddate: "20261004", tel: "054-841-6397" },
+        { contentid: "303", title: "서울세계불꽃축제", areacode: "1", addr1: "서울특별시 영등포구 여의동로 330", eventstartdate: "20261003", eventenddate: "20261003", tel: "02-789-5252" },
+        { contentid: "304", title: "이태원 지구촌축제", areacode: "1", addr1: "서울특별시 용산구 이태원로 일대", eventstartdate: "20261010", eventenddate: "20261011", tel: "02-797-7319" },
+        { contentid: "305", title: "수원화성문화제", areacode: "31", addr1: "경기도 수원시 팔달구 정조로 825", eventstartdate: "20261009", eventenddate: "20261011", tel: "031-290-3572" },
+        { contentid: "306", title: "파주장단콩축제", areacode: "31", addr1: "경기도 파주시 문산읍 임진각로 148-53", eventstartdate: "20261023", eventenddate: "20261025", tel: "031-940-5281" },
+        { contentid: "307", title: "평창 백일홍축제", areacode: "32", addr1: "강원특별자치도 평창군 평창읍 제방길 81", eventstartdate: "20261002", eventenddate: "20261011", tel: "033-332-6061" },
+        { contentid: "308", title: "정선 아리랑제", areacode: "32", addr1: "강원특별자치도 정선군 정선읍 봉양리", eventstartdate: "20261002", eventenddate: "20261005", tel: "033-563-2646" },
+        { contentid: "309", title: "임실N치즈축제", areacode: "37", addr1: "전북특별자치도 임실군 성수면 도인2길 50", eventstartdate: "20261008", eventenddate: "20261011", tel: "063-643-3900" },
+        { contentid: "310", title: "순천만 갈대축제", areacode: "38", addr1: "전라남도 순천시 순천만길 513-25", eventstartdate: "20261023", eventenddate: "20261025", tel: "061-749-6052" },
+        { contentid: "311", title: "백제문화제 (공주·부여)", areacode: "34", addr1: "충청남도 공주시 금벽로 368", eventstartdate: "20261003", eventenddate: "20261011", tel: "041-635-6980" },
+        { contentid: "312", title: "부산국제록페스티벌", areacode: "6", addr1: "부산광역시 사상구 삼락생태공원", eventstartdate: "20261003", eventenddate: "20261004", tel: "051-713-5000" },
+        { contentid: "313", title: "제주 억새꽃 물결 트레킹 페스타", areacode: "39", addr1: "제주특별자치도 서귀포시 표선면 따라비오름 일원", eventstartdate: "20261016", eventenddate: "20261025", tel: "064-740-6000" }
       ],
       "2026-11": [
-        { contentid: "401", title: "서울 빛초롱축제 프리뷰 & 청계천 빛산책", areacode: "1", addr1: "서울특별시 종로구 청계천로 1", eventstartdate: "20261113", eventenddate: "20261129", firstimage: "", tel: "02-3788-0842" },
-        { contentid: "402", title: "남산 단풍길 가을 힐링 페스티벌", areacode: "1", addr1: "서울특별시 중구 삼일대로 231", eventstartdate: "20261106", eventenddate: "20261115", firstimage: "", tel: "02-3783-5900" },
-        { contentid: "403", title: "서울 억새 및 늦가을 야간개장 빛축제", areacode: "1", addr1: "서울특별시 마포구 하늘공원로 95", eventstartdate: "20261101", eventenddate: "20261110", firstimage: "", tel: "02-300-5501" },
-        { contentid: "404", title: "양주 나리농원 핑크뮬리 & 국화 빛축제", areacode: "31", addr1: "경기도 양주시 광사로 131-66", eventstartdate: "20261101", eventenddate: "20261115", firstimage: "", tel: "031-8082-5650" },
-        { contentid: "405", title: "벽초지수목원 가을 국화 & 별빛축제", areacode: "31", addr1: "경기도 파주시 광탄면 부흥로 242", eventstartdate: "20261107", eventenddate: "20261130", firstimage: "", tel: "031-957-2004" },
-        { contentid: "406", title: "아침고요수목원 국화전시회", areacode: "31", addr1: "경기도 가평군 상면 수목원로 432", eventstartdate: "20261101", eventenddate: "20261122", firstimage: "", tel: "1544-6703" },
-        { contentid: "407", title: "포천 허브아일랜드 불빛동화축제", areacode: "31", addr1: "경기도 포천시 신북면 청신로947번길 35", eventstartdate: "20261101", eventenddate: "20261130", firstimage: "", tel: "031-535-6494" },
-        { contentid: "408", title: "부산불꽃축제 (광안리)", areacode: "6", addr1: "부산광역시 수영구 광안해변로 219", eventstartdate: "20261107", eventenddate: "20261107", firstimage: "", tel: "051-713-5000" },
-        { contentid: "409", title: "마산가고파국화축제", areacode: "36", addr1: "경상남도 창원시 마산합포구 수산1길 196", eventstartdate: "20261031", eventenddate: "20261109", firstimage: "", tel: "055-225-2341" },
-        { contentid: "410", title: "순천만국가정원 가을 국화정원 페스타", areacode: "38", addr1: "전라남도 순천시 국가정원1호길 47", eventstartdate: "20261101", eventenddate: "20261122", firstimage: "", tel: "1577-2013" },
-        { contentid: "411", title: "고창 읍성 국화축제", areacode: "37", addr1: "전북특별자치도 고창군 고창읍 모양성로 1", eventstartdate: "20261106", eventenddate: "20261115", firstimage: "", tel: "063-560-2956" },
-        { contentid: "412", title: "제주 최남단 방어축제", areacode: "39", addr1: "제주특별자치도 서귀포시 대정읍 최남단해안로", eventstartdate: "20261119", eventenddate: "20261122", firstimage: "", tel: "064-794-8032" },
-        { contentid: "413", title: "서귀포 감귤박람회", areacode: "39", addr1: "제주특별자치도 서귀포시 효돈순환로 441", eventstartdate: "20261112", eventenddate: "20261116", firstimage: "", tel: "064-760-3261" },
-        { contentid: "414", title: "강릉 커피축제 (가을 스페셜)", areacode: "32", addr1: "강원특별자치도 강릉시 창해로14번길 20-1", eventstartdate: "20261113", eventenddate: "20261115", firstimage: "", tel: "033-647-6802" },
-        { contentid: "415", title: "청남대 가을 국화축제", areacode: "33", addr1: "충청북도 청주시 상당구 문의면 청남대길 646", eventstartdate: "20261101", eventenddate: "20261115", firstimage: "", tel: "043-257-5080" }
+        { contentid: "401", title: "서울 빛초롱축제 프리뷰 & 청계천 빛산책", areacode: "1", addr1: "서울특별시 종로구 청계천로 1", eventstartdate: "20261113", eventenddate: "20261129", tel: "02-3788-0842" },
+        { contentid: "402", title: "남산 단풍길 가을 힐링 페스티벌", areacode: "1", addr1: "서울특별시 중구 삼일대로 231", eventstartdate: "20261106", eventenddate: "20261115", tel: "02-3783-5900" },
+        { contentid: "403", title: "서울 억새 및 늦가을 야간개장 빛축제", areacode: "1", addr1: "서울특별시 마포구 하늘공원로 95", eventstartdate: "20261101", eventenddate: "20261110", tel: "02-300-5501" },
+        { contentid: "404", title: "양주 나리농원 핑크뮬리 & 국화 빛축제", areacode: "31", addr1: "경기도 양주시 광사로 131-66", eventstartdate: "20261101", eventenddate: "20261115", tel: "031-8082-5650" },
+        { contentid: "405", title: "벽초지수목원 가을 국화 & 별빛축제", areacode: "31", addr1: "경기도 파주시 광탄면 부흥로 242", eventstartdate: "20261107", eventenddate: "20261130", tel: "031-957-2004" },
+        { contentid: "406", title: "아침고요수목원 국화전시회", areacode: "31", addr1: "경기도 가평군 상면 수목원로 432", eventstartdate: "20261101", eventenddate: "20261122", tel: "1544-6703" },
+        { contentid: "407", title: "포천 허브아일랜드 불빛동화축제", areacode: "31", addr1: "경기도 포천시 신북면 청신로947번길 35", eventstartdate: "20261101", eventenddate: "20261130", tel: "031-535-6494" },
+        { contentid: "408", title: "부산불꽃축제 (광안리)", areacode: "6", addr1: "부산광역시 수영구 광안해변로 219", eventstartdate: "20261107", eventenddate: "20261107", tel: "051-713-5000" },
+        { contentid: "409", title: "마산가고파국화축제", areacode: "36", addr1: "경상남도 창원시 마산합포구 수산1길 196", eventstartdate: "20261031", eventenddate: "20261109", tel: "055-225-2341" },
+        { contentid: "410", title: "순천만국가정원 가을 국화정원 페스타", areacode: "38", addr1: "전라남도 순천시 국가정원1호길 47", eventstartdate: "20261101", eventenddate: "20261122", tel: "1577-2013" },
+        { contentid: "411", title: "고창 읍성 국화축제", areacode: "37", addr1: "전북특별자치도 고창군 고창읍 모양성로 1", eventstartdate: "20261106", eventenddate: "20261115", tel: "063-560-2956" },
+        { contentid: "412", title: "제주 최남단 방어축제", areacode: "39", addr1: "제주특별자치도 서귀포시 대정읍 최남단해안로", eventstartdate: "20261119", eventenddate: "20261122", tel: "064-794-8032" },
+        { contentid: "413", title: "서귀포 감귤박람회", areacode: "39", addr1: "제주특별자치도 서귀포시 효돈순환로 441", eventstartdate: "20261112", eventenddate: "20261116", tel: "064-760-3261" },
+        { contentid: "414", title: "강릉 커피축제 (가을 스페셜)", areacode: "32", addr1: "강원특별자치도 강릉시 창해로14번길 20-1", eventstartdate: "20261113", eventenddate: "20261115", tel: "033-647-6802" },
+        { contentid: "415", title: "청남대 가을 국화축제", areacode: "33", addr1: "충청북도 청주시 상당구 문의면 청남대길 646", eventstartdate: "20261101", eventenddate: "20261115", tel: "043-257-5080" }
       ]
     };
 
     const state = {
       currentMonth: "2026-11",
       selectedRegion: "ALL",
+      selectedTheme: "ALL",
       searchKeyword: "",
       selectedDate: "20261114",
       isLiveMode: false,
       liveItems: [],
-      regionChart: null,
-      dailyChart: null,
-      doughnutChart: null,
-      ganttChart: null
+      polarChart: null,
+      themeChart: null,
+      spectrumChart: null
     };
 
-    function showToast(message, type = "info") {
-      const container = document.getElementById("toastContainer");
-      const toast = document.createElement("div");
-      const bgMap = {
-        info: "bg-ink text-white border-gray-700",
-        success: "bg-teal-600 text-white border-teal-500",
-        error: "bg-roseDark text-white border-rose-400"
+    function enterDashboard(seasonOpt) {
+      if (seasonOpt) {
+        state.currentMonth = seasonOpt;
+        document.getElementById("monthSelect").value = seasonOpt;
+      }
+      document.getElementById("landingView").classList.add("hidden");
+      document.getElementById("dashboardView").classList.remove("hidden");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      requestAnimationFrame(() => renderAll());
+    }
+
+    function enterWithSeason(ym) {
+      enterDashboard(ym);
+    }
+
+    function backToCover() {
+      document.getElementById("dashboardView").classList.add("hidden");
+      document.getElementById("landingView").classList.remove("hidden");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function classifyTheme(title = "") {
+      if (/(빛|불꽃|유등|별빛|야간)/.test(title)) return "✨ 빛·불꽃";
+      if (/(치즈|장단콩|커피|감귤|방어|야생차|다향)/.test(title)) return "🍊 미식·특산";
+      if (/(꽃|벚꽃|튤립|장미|유채|철쭉|국화|백일홍|억새|갈대|단풍|대나무|뮬리|나비)/.test(title)) return "🌸 꽃·자연";
+      return "🎭 문화·예술";
+    }
+
+    function showToast(msg, type = "info") {
+      const box = document.getElementById("toastBox");
+      const el = document.createElement("div");
+      const styles = {
+        info: "bg-ink text-white border-stone-700",
+        success: "bg-pine text-white border-emerald-700",
+        error: "bg-terracotta text-white border-orange-700"
       };
-      toast.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg border text-xs sm:text-sm font-semibold animate-fade-up ${bgMap[type] || bgMap.info}`;
-      toast.textContent = message;
-      container.appendChild(toast);
-      setTimeout(() => {
-        toast.style.opacity = "0";
-        toast.style.transform = "translateY(-6px)";
-        toast.style.transition = "all 0.25s ease";
-        setTimeout(() => toast.remove(), 250);
-      }, 3200);
+      el.className = `pointer-events-auto px-4 py-3 rounded-xl border text-xs sm:text-sm font-semibold shadow-xl ${styles[type] || styles.info}`;
+      el.textContent = msg;
+      box.appendChild(el);
+      setTimeout(() => el.remove(), 3000);
     }
 
-    function formatDateDot(yyyymmdd) {
-      if (!yyyymmdd || yyyymmdd.length !== 8) return yyyymmdd || "";
-      return `${yyyymmdd.slice(0, 4)}.${yyyymmdd.slice(4, 6)}.${yyyymmdd.slice(6, 8)}`;
+    function formatDateDot(s) {
+      return (s && s.length === 8) ? `${s.slice(0,4)}.${s.slice(4,6)}.${s.slice(6,8)}` : (s || "");
     }
 
-    function calcDurationDays(startStr, endStr) {
-      if (!startStr || !endStr || startStr.length !== 8 || endStr.length !== 8) return 1;
-      const s = new Date(Number(startStr.slice(0, 4)), Number(startStr.slice(4, 6)) - 1, Number(startStr.slice(6, 8)));
-      const e = new Date(Number(endStr.slice(0, 4)), Number(endStr.slice(4, 6)) - 1, Number(endStr.slice(6, 8)));
-      const diff = Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1;
-      return diff > 0 ? diff : 1;
+    function calcDays(s, e) {
+      if (!s || !e || s.length !== 8 || e.length !== 8) return 1;
+      const d1 = new Date(s.slice(0,4), s.slice(4,6)-1, s.slice(6,8));
+      const d2 = new Date(e.slice(0,4), e.slice(4,6)-1, e.slice(6,8));
+      return Math.max(1, Math.round((d2 - d1) / 86400000) + 1);
     }
 
-    function getMonthBaseItems() {
+    function includesWeekend(s, e) {
+      if (!s || !e || s.length !== 8 || e.length !== 8) return false;
+      const cur = new Date(s.slice(0,4), s.slice(4,6)-1, s.slice(6,8));
+      const end = new Date(e.slice(0,4), e.slice(4,6)-1, e.slice(6,8));
+      while (cur <= end) {
+        const day = cur.getDay();
+        if (day === 0 || day === 6) return true;
+        cur.setDate(cur.getDate() + 1);
+      }
+      return false;
+    }
+
+    function getBaseItems() {
       if (state.isLiveMode) return state.liveItems;
       if (state.currentMonth === "ALL_SEASONS") {
-        return Object.entries(SAMPLE_FESTIVALS).flatMap(([ym, arr]) =>
-          arr.map(item => ({ ...item, _seasonMonth: ym }))
-        );
+        return Object.entries(SAMPLE_FESTIVALS).flatMap(([ym, arr]) => arr.map(it => ({ ...it, _ym: ym })));
       }
       return SAMPLE_FESTIVALS[state.currentMonth] || [];
     }
 
-    function applyKeywordFilter(items) {
+    function getItemsExceptRegion() {
       const kw = state.searchKeyword.trim().toLowerCase();
-      if (!kw) return items;
-      return items.filter(item => {
-        const regionName = (AREA_MAP[String(item.areacode)] || "").toLowerCase();
-        return (
-          (item.title || "").toLowerCase().includes(kw) ||
-          (item.addr1 || "").toLowerCase().includes(kw) ||
-          regionName.includes(kw)
-        );
+      return getBaseItems().filter(it => {
+        const matchKw = !kw || (it.title || "").toLowerCase().includes(kw) || (it.addr1 || "").toLowerCase().includes(kw) || (AREA_MAP[String(it.areacode)] || "").toLowerCase().includes(kw);
+        const matchTheme = state.selectedTheme === "ALL" || classifyTheme(it.title) === state.selectedTheme;
+        return matchKw && matchTheme;
       });
     }
 
     function getFilteredItems() {
-      let items = applyKeywordFilter(getMonthBaseItems());
-      if (state.selectedRegion !== "ALL") {
-        items = items.filter(item => String(item.areacode) === String(state.selectedRegion));
-      }
-      return items;
+      return getItemsExceptRegion().filter(it => state.selectedRegion === "ALL" || String(it.areacode) === String(state.selectedRegion));
     }
 
-    function aggregateByRegion(items) {
-      const counts = {};
-      items.forEach(item => {
-        const code = String(item.areacode || "");
-        const name = AREA_MAP[code] || "기타";
-        if (!counts[name]) counts[name] = { count: 0, code };
-        counts[name].count += 1;
-      });
-      const sorted = Object.entries(counts).sort((a, b) => b[1].count - a[1].count);
-      return {
-        labels: sorted.map(e => e[0]),
-        data: sorted.map(e => e[1].count),
-        codes: sorted.map(e => e[1].code)
-      };
-    }
-
-    function aggregateByDay(items, yearMonth) {
-      const [yearStr, monthStr] = yearMonth.split("-");
-      const year = Number(yearStr);
-      const month = Number(monthStr);
-      const lastDay = new Date(year, month, 0).getDate();
-      const labels = [], counts = [], fullDates = [];
-
-      for (let d = 1; d <= lastDay; d++) {
-        const dayPad = String(d).padStart(2, "0");
-        const targetDate = `${yearStr}${monthStr}${dayPad}`;
-        const weekday = WEEKDAYS_KO[new Date(year, month - 1, d).getDay()];
-        const activeCount = items.filter(it => it.eventstartdate <= targetDate && targetDate <= it.eventenddate).length;
-        labels.push(`${d}일(${weekday})`);
-        counts.push(activeCount);
-        fullDates.push(targetDate);
-      }
-      return { labels, counts, fullDates, lastDay };
-    }
-
-    function updateResetButtonState() {
-      const resetBtn = document.getElementById("resetFilterBtn");
-      const hasFilter = state.selectedRegion !== "ALL" || state.searchKeyword.trim() !== "";
+    function renderAll() {
+      const resetBtn = document.getElementById("resetAllBtn");
+      const hasFilter = state.selectedRegion !== "ALL" || state.selectedTheme !== "ALL" || state.searchKeyword.trim() !== "";
       resetBtn.classList.toggle("hidden", !hasFilter);
-      resetBtn.classList.toggle("inline-flex", hasFilter);
+
+      const itemsForMap = getItemsExceptRegion();
+      const filtered = getFilteredItems();
+
+      renderKoreaTileMap(itemsForMap);
+      renderMacroPolarChart(filtered);
+      renderThemeBarChart(filtered);
+      renderSpectrumAndKPIs(filtered);
+      renderCalendar(filtered);
     }
 
-    function updateDashboard() {
-      const isAllSeasons = state.currentMonth === "ALL_SEASONS";
-      const baseWithKeyword = applyKeywordFilter(getMonthBaseItems());
-      const filteredItems = getFilteredItems();
-      const regionAgg = aggregateByRegion(baseWithKeyword);
+    function renderKoreaTileMap(items) {
+      const container = document.getElementById("koreaTileMap");
+      container.innerHTML = "";
 
-      // 1) KPI 업데이트
-      document.getElementById("kpiTotalCount").textContent = filteredItems.length;
-      document.getElementById("kpiTotalSub").textContent =
-        state.selectedRegion === "ALL"
-          ? (isAllSeasons ? "4개 시즌 전체 합계" : "전국 기준 진행 축제")
-          : `${AREA_MAP[state.selectedRegion] || "선택 지역"} 필터 적용 중`;
-
-      if (regionAgg.labels.length > 0) {
-        const topName = regionAgg.labels[0];
-        const topCnt = regionAgg.data[0];
-        const ratio = baseWithKeyword.length > 0 ? Math.round((topCnt / baseWithKeyword.length) * 100) : 0;
-        document.getElementById("kpiTopRegion").textContent = topName;
-        document.getElementById("kpiTopRegionCount").textContent = `${topCnt}건`;
-        document.getElementById("kpiTopRegionSub").textContent = `조회 축제의 ${ratio}% 차지`;
-      } else {
-        document.getElementById("kpiTopRegion").textContent = "-";
-        document.getElementById("kpiTopRegionCount").textContent = "0건";
-        document.getElementById("kpiTopRegionSub").textContent = "데이터 없음";
-      }
-
-      const avgDuration = filteredItems.length > 0
-        ? (filteredItems.reduce((acc, cur) => acc + calcDurationDays(cur.eventstartdate, cur.eventenddate), 0) / filteredItems.length).toFixed(1)
-        : 0;
-      document.getElementById("kpiAvgDuration").textContent = `평균 개최 기간 ${avgDuration}일`;
-
-      // 2) 기간 유형 집계 (단기/중기/장기)
-      let shortCnt = 0, midCnt = 0, longCnt = 0, maxDur = 0, longestTitle = "-";
-      filteredItems.forEach(item => {
-        const d = calcDurationDays(item.eventstartdate, item.eventenddate);
-        if (d <= 3) shortCnt++;
-        else if (d <= 10) midCnt++;
-        else longCnt++;
-        if (d > maxDur) { maxDur = d; longestTitle = item.title; }
+      const counts = {};
+      items.forEach(it => {
+        const c = String(it.areacode);
+        counts[c] = (counts[c] || 0) + 1;
       });
+      const maxCnt = Math.max(1, ...Object.values(counts));
 
-      const modeArr = [
-        { label: "단기(1~3일)", cnt: shortCnt },
-        { label: "중기(4~10일)", cnt: midCnt },
-        { label: "장기(11일+)", cnt: longCnt }
-      ].sort((a, b) => b.cnt - a.cnt);
+      document.getElementById("mapSelectedTag").textContent =
+        state.selectedRegion === "ALL" ? "전체" : (AREA_MAP[state.selectedRegion] || "선택");
 
-      if (filteredItems.length > 0) {
-        document.getElementById("kpiDurationMode").textContent = modeArr[0].label;
-        document.getElementById("kpiDurationModeRatio").textContent = `${Math.round((modeArr[0].cnt / filteredItems.length) * 100)}%`;
-        document.getElementById("kpiLongestText").textContent = `최장 ${maxDur}일 · ${longestTitle}`;
-      } else {
-        document.getElementById("kpiDurationMode").textContent = "-";
-        document.getElementById("kpiDurationModeRatio").textContent = "0%";
-        document.getElementById("kpiLongestText").textContent = "최장 기간: -";
-      }
+      const gridMap = Array.from({ length: 5 }, () => Array(5).fill(null));
+      KOREA_TILE_LAYOUT.forEach(t => { gridMap[t.row - 1][t.col - 1] = t; });
 
-      // 3) 차트 렌더링
-      renderRegionBarChart(regionAgg);
-      renderDurationDoughnutChart(shortCnt, midCnt, longCnt);
+      for (let r = 0; r < 5; r++) {
+        for (let c = 0; c < 5; c++) {
+          const tile = gridMap[r][c];
+          if (!tile) {
+            const spacer = document.createElement("div");
+            spacer.className = "h-12 sm:h-14";
+            container.appendChild(spacer);
+            continue;
+          }
 
-      if (isAllSeasons) {
-        // 전체 시즌일 경우 월별 비교 차트 & 최장 기간 Top 10 차트
-        const monthKeys = Object.keys(SAMPLE_FESTIVALS);
-        const monthLabels = ["4월 (봄꽃)", "5월 (가정의달)", "10월 (단풍)", "11월 (빛·국화)"];
-        const monthCounts = monthKeys.map(ym => {
-          return filteredItems.filter(it => it._seasonMonth === ym).length;
-        });
+          const cnt = counts[tile.code] || 0;
+          const ratio = cnt / maxCnt;
+          const isSelected = state.selectedRegion === tile.code;
 
-        let maxIdx = 0;
-        monthCounts.forEach((c, i) => { if (c > monthCounts[maxIdx]) maxIdx = i; });
+          let colorStyle = "bg-paper border-stone-300 text-stone-400";
+          if (cnt > 0 && ratio <= 0.35) colorStyle = "bg-emerald-50 border-emerald-300 text-pine";
+          else if (cnt > 0 && ratio <= 0.7) colorStyle = "bg-pine border-pine text-white";
+          else if (cnt > 0) colorStyle = "bg-terracotta border-terracotta text-white";
 
-        document.getElementById("kpiPeakLabelTitle").textContent = "최다 개최 시즌 (피크)";
-        document.getElementById("kpiPeakDay").textContent = monthLabels[maxIdx];
-        document.getElementById("kpiPeakCount").textContent = `${monthCounts[maxIdx]}개`;
-
-        document.getElementById("trendChartTitle").textContent = "📆 시즌별(월별) 축제 개최 비교";
-        document.getElementById("trendChartSub").textContent = "막대를 클릭하면 해당 월의 달력과 상세 타임라인으로 이동합니다";
-        renderSeasonCompareChart(monthKeys, monthLabels, monthCounts);
-
-        document.getElementById("ganttChartTitle").textContent = "🏅 최장 기간 개최 축제 TOP 10";
-        document.getElementById("ganttChartSub").textContent = "전체 시즌 중 개최 일수가 가장 긴 축제 순위 (클릭 시 해당 월 이동)";
-        renderTopDurationChart(filteredItems);
-      } else {
-        const dailyAgg = aggregateByDay(filteredItems, state.currentMonth);
-        let maxDayCount = 0, peakDayLabel = "-";
-        dailyAgg.counts.forEach((cnt, idx) => {
-          if (cnt > maxDayCount) { maxDayCount = cnt; peakDayLabel = dailyAgg.labels[idx]; }
-        });
-
-        document.getElementById("kpiPeakLabelTitle").textContent = "최대 동시 개최일 (피크)";
-        document.getElementById("kpiPeakDay").textContent = peakDayLabel;
-        document.getElementById("kpiPeakCount").textContent = `동시 ${maxDayCount}개`;
-
-        document.getElementById("trendChartTitle").textContent = "🗓️ 일별 축제 밀집도 추이";
-        document.getElementById("trendChartSub").textContent = "날짜별 동시 개최 축제 수 (포인트 클릭 시 해당 날짜 선택)";
-        renderDailyTrendChart(dailyAgg);
-
-        document.getElementById("ganttChartTitle").textContent = "📅 축제 일정 타임라인 (간트 차트)";
-        document.getElementById("ganttChartSub").textContent = "1일~말일 사이 각 축제의 진행 구간 (막대 클릭 시 시작 날짜 선택)";
-        renderGanttTimelineChart(filteredItems, state.currentMonth);
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.onclick = () => {
+            state.selectedRegion = isSelected ? "ALL" : tile.code;
+            renderAll();
+          };
+          btn.className = `region-tile h-12 sm:h-14 rounded-xl border flex flex-col items-center justify-center p-1 ${colorStyle} ${isSelected ? "active-tile" : ""}`;
+          btn.innerHTML = `
+            <span class="text-[11px] sm:text-xs font-bold leading-none">${tile.name}</span>
+            <span class="text-[11px] font-extrabold mt-1 opacity-90">${cnt}</span>
+          `;
+          container.appendChild(btn);
+        }
       }
     }
 
-    function renderRegionBarChart(regionAgg) {
-      const ctx = document.getElementById("regionBarChart").getContext("2d");
-      if (state.regionChart) state.regionChart.destroy();
+    function renderMacroPolarChart(items) {
+      const ctx = document.getElementById("macroPolarChart").getContext("2d");
+      if (state.polarChart) state.polarChart.destroy();
 
-      const bgColors = regionAgg.codes.map(code => {
-        if (state.selectedRegion === "ALL") return "rgba(255, 107, 139, 0.78)";
-        return String(code) === String(state.selectedRegion) ? "#D6456B" : "rgba(255, 107, 139, 0.25)";
+      const labels = Object.keys(MACRO_REGIONS);
+      const data = labels.map(macro => {
+        const codes = MACRO_REGIONS[macro];
+        return items.filter(it => codes.includes(String(it.areacode))).length;
       });
 
-      state.regionChart = new Chart(ctx, {
+      state.polarChart = new Chart(ctx, {
+        type: "polarArea",
+        data: {
+          labels,
+          datasets: [{
+            data,
+            backgroundColor: [
+              "rgba(27, 77, 62, 0.78)",
+              "rgba(224, 90, 54, 0.78)",
+              "rgba(217, 119, 6, 0.78)",
+              "rgba(71, 85, 105, 0.78)",
+              "rgba(16, 185, 129, 0.72)"
+            ],
+            borderColor: "#FFFFFF",
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              grid: { color: "rgba(28, 25, 23, 0.08)" },
+              ticks: { display: false },
+              pointLabels: { display: true, color: "#1C1917", font: { size: 11, weight: "700" } }
+            }
+          },
+          plugins: {
+            legend: { position: "bottom", labels: { boxWidth: 10, padding: 10, font: { size: 11 } } },
+            tooltip: { backgroundColor: "#1C1917", cornerRadius: 10 }
+          }
+        }
+      });
+    }
+
+    function renderThemeBarChart(items) {
+      const ctx = document.getElementById("themeBarChart").getContext("2d");
+      if (state.themeChart) state.themeChart.destroy();
+
+      const themeOrder = ["🌸 꽃·자연", "✨ 빛·불꽃", "🎭 문화·예술", "🍊 미식·특산"];
+      const themeItems = state.selectedTheme === "ALL" ? items : getItemsExceptRegion().filter(it => state.selectedRegion === "ALL" || String(it.areacode) === String(state.selectedRegion));
+      const counts = themeOrder.map(t => themeItems.filter(it => classifyTheme(it.title) === t).length);
+
+      document.getElementById("themeFilterBadge").classList.toggle("hidden", state.selectedTheme === "ALL");
+
+      const colors = themeOrder.map((t, idx) => {
+        const base = ["#E05A36", "#1B4D3E", "#334155", "#D97706"][idx];
+        if (state.selectedTheme === "ALL" || state.selectedTheme === t) return base;
+        return "rgba(168, 162, 158, 0.3)";
+      });
+
+      state.themeChart = new Chart(ctx, {
         type: "bar",
         data: {
-          labels: regionAgg.labels,
+          labels: themeOrder,
           datasets: [{
-            label: "축제 수 (개)",
-            data: regionAgg.data,
-            backgroundColor: bgColors,
-            borderColor: "#FF6B8B",
-            borderWidth: 1,
+            data: counts,
+            backgroundColor: colors,
             borderRadius: 8,
-            barThickness: 16
+            barThickness: 22
           }]
         },
         options: {
@@ -684,27 +770,17 @@
           maintainAspectRatio: false,
           plugins: {
             legend: { display: false },
-            tooltip: {
-              backgroundColor: "#2D2628", padding: 10, cornerRadius: 10,
-              callbacks: { label: (ctx) => ` ${ctx.parsed.x}개 축제 진행` }
-            }
+            tooltip: { backgroundColor: "#1C1917", cornerRadius: 10, callbacks: { label: c => ` ${c.parsed.x}건` } }
           },
           scales: {
-            x: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } }, grid: { color: "rgba(255,107,139,0.08)" } },
-            y: { ticks: { font: { size: 12, weight: "600" }, color: "#2D2628" }, grid: { display: false } }
+            x: { beginAtZero: true, ticks: { stepSize: 2 } },
+            y: { grid: { display: false }, ticks: { color: "#1C1917", font: { size: 12, weight: "700" } } }
           },
-          onClick: (_, elements) => {
-            if (elements.length > 0) {
-              const idx = elements[0].index;
-              const clickedCode = regionAgg.codes[idx];
-              const clickedName = regionAgg.labels[idx];
-              if (state.selectedRegion === clickedCode) {
-                setRegionFilter("ALL");
-                showToast("지역 필터가 해제되었습니다.");
-              } else {
-                setRegionFilter(clickedCode);
-                showToast(`📍 '${clickedName}' 지역 축제로 필터링했습니다.`);
-              }
+          onClick: (_, els) => {
+            if (els.length > 0) {
+              const clicked = themeOrder[els[0].index];
+              state.selectedTheme = state.selectedTheme === clicked ? "ALL" : clicked;
+              renderAll();
             }
           },
           onHover: (e, el) => { e.native.target.style.cursor = el[0] ? "pointer" : "default"; }
@@ -712,592 +788,386 @@
       });
     }
 
-    function renderDailyTrendChart(dailyAgg) {
-      const ctx = document.getElementById("dailyTrendChart").getContext("2d");
-      if (state.dailyChart) state.dailyChart.destroy();
+    function renderSpectrumAndKPIs(filtered) {
+      document.getElementById("kpiCount").textContent = filtered.length;
+      document.getElementById("kpiCountSub").textContent =
+        state.selectedRegion === "ALL" ? "전체 지역 기준" : `${AREA_MAP[state.selectedRegion]} 지역 선택됨`;
 
-      const gradient = ctx.createLinearGradient(0, 0, 0, 260);
-      gradient.addColorStop(0, "rgba(255, 107, 139, 0.38)");
-      gradient.addColorStop(1, "rgba(255, 107, 139, 0.01)");
+      const regCnt = {};
+      filtered.forEach(it => {
+        const name = AREA_MAP[String(it.areacode)] || "기타";
+        regCnt[name] = (regCnt[name] || 0) + 1;
+      });
+      const topReg = Object.entries(regCnt).sort((a, b) => b[1] - a[1])[0];
+      if (topReg) {
+        document.getElementById("kpiTopRegion").textContent = topReg[0];
+        document.getElementById("kpiTopRegionBadge").textContent = `${topReg[1]}건`;
+        document.getElementById("kpiTopRegionRatio").textContent = `점유율 ${Math.round((topReg[1] / filtered.length) * 100)}%`;
+      } else {
+        document.getElementById("kpiTopRegion").textContent = "-";
+        document.getElementById("kpiTopRegionBadge").textContent = "0건";
+        document.getElementById("kpiTopRegionRatio").textContent = "데이터 없음";
+      }
 
-      state.dailyChart = new Chart(ctx, {
+      const thCnt = {};
+      let weekendCnt = 0, durSum = 0;
+      filtered.forEach(it => {
+        const t = classifyTheme(it.title);
+        thCnt[t] = (thCnt[t] || 0) + 1;
+        if (includesWeekend(it.eventstartdate, it.eventenddate)) weekendCnt++;
+        durSum += calcDays(it.eventstartdate, it.eventenddate);
+      });
+      const topTheme = Object.entries(thCnt).sort((a, b) => b[1] - a[1])[0];
+      document.getElementById("kpiTopTheme").textContent = topTheme ? topTheme[0] : "-";
+      const wkPct = filtered.length ? Math.round((weekendCnt / filtered.length) * 100) : 0;
+      document.getElementById("kpiWeekendShare").textContent = `주말 포함 비율 ${wkPct}%`;
+      document.getElementById("kpiAvgDays").textContent = `평균 기간 ${filtered.length ? (durSum / filtered.length).toFixed(1) : 0}일`;
+
+      const ctx = document.getElementById("spectrumChart").getContext("2d");
+      if (state.spectrumChart) state.spectrumChart.destroy();
+
+      if (state.currentMonth === "ALL_SEASONS") {
+        const mKeys = ["2026-04", "2026-05", "2026-10", "2026-11"];
+        const mLabels = ["4월 봄꽃", "5월 가정의달", "10월 가을단풍", "11월 빛·국화"];
+        const mCounts = mKeys.map(k => filtered.filter(it => it._ym === k).length);
+        let maxI = 0;
+        mCounts.forEach((v, i) => { if (v > mCounts[maxI]) maxI = i; });
+
+        document.getElementById("kpiPeakTitle").textContent = "피크 시즌";
+        document.getElementById("kpiPeakDay").textContent = mLabels[maxI];
+        document.getElementById("kpiPeakVal").textContent = `${mCounts[maxI]}개`;
+        document.getElementById("spectrumTitle").textContent = "📊 시즌별 축제 개최 비교";
+        document.getElementById("spectrumSub").textContent = "막대를 클릭하면 해당 월의 달력으로 이동합니다";
+
+        state.spectrumChart = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: mLabels,
+            datasets: [{
+              data: mCounts,
+              backgroundColor: ["#E05A36", "#1B4D3E", "#D97706", "#334155"],
+              borderRadius: 10,
+              barThickness: 44
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: "#1C1917", cornerRadius: 10 } },
+            scales: { x: { grid: { display: false } }, y: { beginAtZero: true } },
+            onClick: (_, els) => { if (els.length) changeMonth(mKeys[els[0].index]); }
+          }
+        });
+        return;
+      }
+
+      const [yStr, mStr] = state.currentMonth.split("-");
+      const lastDay = new Date(Number(yStr), Number(mStr), 0).getDate();
+      const labels = [], counts = [], fullDates = [];
+      let peakVal = 0, peakLabel = "-";
+
+      for (let d = 1; d <= lastDay; d++) {
+        const dStr = `${yStr}${mStr}${String(d).padStart(2, "0")}`;
+        const wd = WEEKDAYS_KO[new Date(Number(yStr), Number(mStr) - 1, d).getDay()];
+        const cnt = filtered.filter(it => it.eventstartdate <= dStr && dStr <= it.eventenddate).length;
+        const lbl = `${d}일(${wd})`;
+        labels.push(lbl);
+        counts.push(cnt);
+        fullDates.push(dStr);
+        if (cnt > peakVal) { peakVal = cnt; peakLabel = lbl; }
+      }
+
+      document.getElementById("kpiPeakTitle").textContent = "최대 밀집일";
+      document.getElementById("kpiPeakDay").textContent = peakLabel;
+      document.getElementById("kpiPeakVal").textContent = `동시 ${peakVal}개`;
+      document.getElementById("spectrumTitle").textContent = "📈 일별 축제 밀집도 추이";
+      document.getElementById("spectrumSub").textContent = "포인트를 클릭하면 아래 달력에서 해당 날짜가 선택됩니다";
+
+      const grad = ctx.createLinearGradient(0, 0, 0, 210);
+      grad.addColorStop(0, "rgba(27, 77, 62, 0.28)");
+      grad.addColorStop(1, "rgba(27, 77, 62, 0.0)");
+
+      state.spectrumChart = new Chart(ctx, {
         type: "line",
         data: {
-          labels: dailyAgg.labels,
+          labels,
           datasets: [{
-            label: "진행 중인 축제 수",
-            data: dailyAgg.counts,
-            borderColor: "#FF6B8B",
-            backgroundColor: gradient,
-            borderWidth: 2.5,
+            label: "동시 진행 축제",
+            data: counts,
+            borderColor: "#1B4D3E",
+            backgroundColor: grad,
             fill: true,
-            tension: 0.35,
+            tension: 0.32,
+            borderWidth: 2.5,
             pointRadius: 3.5,
-            pointHoverRadius: 6,
+            pointHoverRadius: 7,
             pointBackgroundColor: "#FFFFFF",
-            pointBorderColor: "#D6456B",
+            pointBorderColor: "#E05A36",
             pointBorderWidth: 2
           }]
         },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
+          responsive: true, maintainAspectRatio: false,
           interaction: { mode: "index", intersect: false },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: "#2D2628", padding: 10, cornerRadius: 10,
-              callbacks: { label: (ctx) => ` 동시 진행 축제: ${ctx.parsed.y}개` }
-            }
-          },
+          plugins: { legend: { display: false }, tooltip: { backgroundColor: "#1C1917", cornerRadius: 10 } },
           scales: {
-            x: { ticks: { maxTicksLimit: 10, font: { size: 11 } }, grid: { display: false } },
-            y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } }, grid: { color: "rgba(255,107,139,0.08)" } }
+            x: { grid: { display: false }, ticks: { maxTicksLimit: 11 } },
+            y: { beginAtZero: true, ticks: { stepSize: 1 } }
           },
-          onClick: (_, elements) => {
-            if (elements.length > 0) selectCalendarDate(dailyAgg.fullDates[elements[0].index]);
-          }
-        }
-      });
-    }
-
-    function renderSeasonCompareChart(monthKeys, monthLabels, monthCounts) {
-      const ctx = document.getElementById("dailyTrendChart").getContext("2d");
-      if (state.dailyChart) state.dailyChart.destroy();
-
-      state.dailyChart = new Chart(ctx, {
-        type: "bar",
-        data: {
-          labels: monthLabels,
-          datasets: [{
-            label: "개최 축제 수",
-            data: monthCounts,
-            backgroundColor: ["#FF9E7D", "#4ECDC4", "#FFB347", "#FF6B8B"],
-            borderRadius: 12,
-            barThickness: 44
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: "#2D2628", padding: 10, cornerRadius: 10,
-              callbacks: { label: (ctx) => ` ${ctx.parsed.y}개 축제` }
-            }
-          },
-          scales: {
-            x: { grid: { display: false }, ticks: { font: { size: 12, weight: "600" } } },
-            y: { beginAtZero: true, ticks: { stepSize: 2, font: { size: 11 } }, grid: { color: "rgba(255,107,139,0.08)" } }
-          },
-          onClick: (_, elements) => {
-            if (elements.length > 0) {
-              const targetMonth = monthKeys[elements[0].index];
-              changeMonth(targetMonth);
-              showToast(`🗓️ ${monthLabels[elements[0].index]} 상세 보기로 이동했습니다.`);
-            }
-          },
-          onHover: (e, el) => { e.native.target.style.cursor = el[0] ? "pointer" : "default"; }
-        }
-      });
-    }
-
-    function renderDurationDoughnutChart(shortCnt, midCnt, longCnt) {
-      const ctx = document.getElementById("durationDoughnutChart").getContext("2d");
-      if (state.doughnutChart) state.doughnutChart.destroy();
-
-      const total = shortCnt + midCnt + longCnt;
-      state.doughnutChart = new Chart(ctx, {
-        type: "doughnut",
-        data: {
-          labels: ["단기 (1~3일)", "중기 (4~10일)", "장기 (11일 이상)"],
-          datasets: [{
-            data: total === 0 ? [1] : [shortCnt, midCnt, longCnt],
-            backgroundColor: total === 0 ? ["#F3F4F6"] : ["#4ECDC4", "#FF9E7D", "#FF6B8B"],
-            borderWidth: 2,
-            borderColor: "#FFFFFF",
-            hoverOffset: 6
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: "62%",
-          plugins: {
-            legend: {
-              position: "bottom",
-              labels: { boxWidth: 12, padding: 14, font: { size: 12, weight: "600" } }
-            },
-            tooltip: {
-              enabled: total > 0,
-              backgroundColor: "#2D2628", padding: 10, cornerRadius: 10,
-              callbacks: {
-                label: (ctx) => {
-                  const pct = Math.round((ctx.parsed / total) * 100);
-                  return ` ${ctx.label}: ${ctx.parsed}건 (${pct}%)`;
-                }
-              }
+          onClick: (_, els) => {
+            if (els.length) {
+              state.selectedDate = fullDates[els[0].index];
+              renderCalendar(filtered);
             }
           }
         }
       });
     }
 
-    function renderGanttTimelineChart(items, yearMonth) {
-      const ctx = document.getElementById("ganttTimelineChart").getContext("2d");
-      if (state.ganttChart) state.ganttChart.destroy();
-
-      const [yearStr, monthStr] = yearMonth.split("-");
-      const lastDay = new Date(Number(yearStr), Number(monthStr), 0).getDate();
-      const monthStartStr = `${yearStr}${monthStr}01`;
-      const monthEndStr = `${yearStr}${monthStr}${String(lastDay).padStart(2, "0")}`;
-
-      // 시작일 기준 정렬 (최대 15개 표시)
-      const sorted = [...items].sort((a, b) => a.eventstartdate.localeCompare(b.eventstartdate)).slice(0, 15);
-      const wrapper = document.getElementById("ganttWrapper");
-      wrapper.style.minHeight = `${Math.max(260, sorted.length * 24 + 55)}px`;
-
-      const labels = sorted.map(it => it.title.length > 14 ? it.title.slice(0, 14) + "…" : it.title);
-      const dataRanges = sorted.map(it => {
-        const sDay = it.eventstartdate < monthStartStr ? 1 : Number(it.eventstartdate.slice(6, 8));
-        const eDay = it.eventenddate > monthEndStr ? lastDay : Number(it.eventenddate.slice(6, 8));
-        return [sDay - 0.45, eDay + 0.45];
-      });
-
-      const palette = ["rgba(255, 107, 139, 0.85)", "rgba(78, 205, 196, 0.85)", "rgba(255, 158, 125, 0.88)"];
-      const bgColors = sorted.map((_, idx) => palette[idx % palette.length]);
-
-      state.ganttChart = new Chart(ctx, {
-        type: "bar",
-        data: {
-          labels,
-          datasets: [{
-            label: "개최 기간",
-            data: dataRanges,
-            backgroundColor: bgColors,
-            borderRadius: 6,
-            borderSkipped: false,
-            barThickness: 14
-          }]
-        },
-        options: {
-          indexAxis: "y",
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: "#2D2628", padding: 10, cornerRadius: 10,
-              callbacks: {
-                title: (itemsTip) => sorted[itemsTip[0].dataIndex].title,
-                label: (ctx) => {
-                  const it = sorted[ctx.dataIndex];
-                  const dur = calcDurationDays(it.eventstartdate, it.eventenddate);
-                  return ` ${formatDateDot(it.eventstartdate)} ~ ${formatDateDot(it.eventenddate)} (${dur}일간)`;
-                }
-              }
-            }
-          },
-          scales: {
-            x: {
-              min: 0.5,
-              max: lastDay + 0.5,
-              ticks: {
-                stepSize: 2,
-                callback: (val) => Number.isInteger(val) ? `${val}일` : "",
-                font: { size: 11 }
-              },
-              grid: { color: "rgba(255, 107, 139, 0.08)" }
-            },
-            y: {
-              ticks: { font: { size: 11, weight: "600" }, color: "#2D2628" },
-              grid: { display: false }
-            }
-          },
-          onClick: (_, elements) => {
-            if (elements.length > 0) {
-              const it = sorted[elements[0].index];
-              const jumpDay = it.eventstartdate < monthStartStr ? monthStartStr : it.eventstartdate;
-              selectCalendarDate(jumpDay);
-              showToast(`📌 '${it.title}' 시작일로 이동했습니다.`);
-            }
-          },
-          onHover: (e, el) => { e.native.target.style.cursor = el[0] ? "pointer" : "default"; }
-        }
-      });
-    }
-
-    function renderTopDurationChart(items) {
-      const ctx = document.getElementById("ganttTimelineChart").getContext("2d");
-      if (state.ganttChart) state.ganttChart.destroy();
-
-      const top10 = [...items]
-        .map(it => ({ ...it, _dur: calcDurationDays(it.eventstartdate, it.eventenddate) }))
-        .sort((a, b) => b._dur - a._dur)
-        .slice(0, 10);
-
-      document.getElementById("ganttWrapper").style.minHeight = "280px";
-
-      state.ganttChart = new Chart(ctx, {
-        type: "bar",
-        data: {
-          labels: top10.map(it => it.title.length > 15 ? it.title.slice(0, 15) + "…" : it.title),
-          datasets: [{
-            label: "개최 일수",
-            data: top10.map(it => it._dur),
-            backgroundColor: "rgba(78, 205, 196, 0.82)",
-            borderRadius: 8,
-            barThickness: 16
-          }]
-        },
-        options: {
-          indexAxis: "y",
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: "#2D2628", padding: 10, cornerRadius: 10,
-              callbacks: {
-                title: (t) => top10[t[0].dataIndex].title,
-                label: (ctx) => {
-                  const it = top10[ctx.dataIndex];
-                  return ` ${it._dur}일간 (${formatDateDot(it.eventstartdate)} ~ ${formatDateDot(it.eventenddate)})`;
-                }
-              }
-            }
-          },
-          scales: {
-            x: { beginAtZero: true, ticks: { callback: v => `${v}일`, font: { size: 11 } }, grid: { color: "rgba(78,205,196,0.12)" } },
-            y: { ticks: { font: { size: 11, weight: "600" }, color: "#2D2628" }, grid: { display: false } }
-          },
-          onClick: (_, elements) => {
-            if (elements.length > 0) {
-              const it = top10[elements[0].index];
-              if (it._seasonMonth) changeMonth(it._seasonMonth);
-            }
-          },
-          onHover: (e, el) => { e.native.target.style.cursor = el[0] ? "pointer" : "default"; }
-        }
-      });
-    }
-
-    function renderCalendar() {
-      const grid = document.getElementById("calendarGrid");
+    function renderCalendar(filtered) {
+      const grid = document.getElementById("calGrid");
+      const header = document.getElementById("calWeekHeader");
       grid.innerHTML = "";
 
       if (state.currentMonth === "ALL_SEASONS") {
-        document.getElementById("calendarHeaderTitle").textContent = "전체 시즌 통합 보기";
-        document.getElementById("calendarHeaderSub").textContent = "월별 카드를 선택하면 해당 월의 달력이 펼쳐집니다";
-
-        const seasonMeta = [
-          { key: "2026-04", title: "2026년 4월", tag: "🌸 봄꽃 시즌", desc: "벚꽃·튤립·유채꽃 중심" },
-          { key: "2026-05", title: "2026년 5월", tag: "🌹 가정의 달", desc: "장미·녹차·전통문화 중심" },
-          { key: "2026-10", title: "2026년 10월", tag: "🍁 가을 단풍", desc: "불꽃·유등·미식·단기축제" },
-          { key: "2026-11", title: "2026년 11월", tag: "✨ 늦가을·빛축제", desc: "국화전시·수목원 별빛축제" }
-        ];
-
-        const filteredAll = getFilteredItems();
+        header.classList.add("hidden");
         grid.className = "grid grid-cols-1 sm:grid-cols-2 gap-3";
-        seasonMeta.forEach(s => {
-          const cnt = filteredAll.filter(it => it._seasonMonth === s.key).length;
-          const card = document.createElement("button");
-          card.type = "button";
-          card.onclick = () => changeMonth(s.key);
-          card.className = "p-5 rounded-2xl border border-pink-100 bg-cream/80 hover:bg-blush/50 hover:border-coral text-left transition shadow-sm";
-          card.innerHTML = `
-            <span class="inline-block text-xs font-bold text-roseDark bg-white px-2.5 py-1 rounded-full border border-pink-100 mb-2">${s.tag}</span>
-            <div class="flex items-baseline justify-between">
-              <h3 class="text-lg font-extrabold text-ink">${s.title}</h3>
-              <span class="text-xl font-extrabold text-coral">${cnt}건</span>
-            </div>
-            <p class="text-xs text-gray-500 mt-1">${s.desc}</p>
-          `;
-          grid.appendChild(card);
-        });
+        document.getElementById("calTitle").textContent = "시즌별 아카이브 인덱스";
+        document.getElementById("calSub").textContent = "원하는 시즌 카드를 클릭해 상세 달력으로 들어가세요";
 
-        renderSelectedDateList();
+        [
+          { key: "2026-04", title: "2026년 4월", badge: "🌸 SPRING · 봄꽃" },
+          { key: "2026-05", title: "2026년 5월", badge: "🌿 MAY · 가정의달" },
+          { key: "2026-10", title: "2026년 10월", badge: "🍁 AUTUMN · 단풍" },
+          { key: "2026-11", title: "2026년 11월", badge: "✨ LATE FALL · 빛" }
+        ].forEach(s => {
+          const cnt = filtered.filter(it => it._ym === s.key).length;
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.onclick = () => changeMonth(s.key);
+          btn.className = "p-5 rounded-2xl bg-paper border border-stone-300 hover:border-pine text-left transition";
+          btn.innerHTML = `
+            <span class="text-[11px] font-extrabold text-terracotta">${s.badge}</span>
+            <div class="flex items-baseline justify-between mt-1.5">
+              <span class="font-serif text-lg font-bold text-ink">${s.title}</span>
+              <span class="text-xl font-black text-pine">${cnt}건</span>
+            </div>
+          `;
+          grid.appendChild(btn);
+        });
+        renderFeed(filtered);
         return;
       }
 
+      header.classList.remove("hidden");
       grid.className = "grid grid-cols-7 gap-1.5 sm:gap-2";
-      const [yearStr, monthStr] = state.currentMonth.split("-");
-      const year = Number(yearStr);
-      const month = Number(monthStr);
-
-      document.getElementById("calendarHeaderTitle").textContent = `${year}년 ${month}월 축제 달력`;
-      document.getElementById("calendarHeaderSub").textContent = "날짜를 클릭해 당일 열리는 축제를 확인하세요";
-
-      const firstDayWeekday = new Date(year, month - 1, 1).getDay();
+      const [yStr, mStr] = state.currentMonth.split("-");
+      const year = Number(yStr), month = Number(mStr);
+      const firstWd = new Date(year, month - 1, 1).getDay();
       const lastDate = new Date(year, month, 0).getDate();
-      const filteredItems = getFilteredItems();
 
-      if (!state.selectedDate.startsWith(`${yearStr}${monthStr}`)) {
-        const defaultDay = Math.min(14, lastDate);
-        state.selectedDate = `${yearStr}${monthStr}${String(defaultDay).padStart(2, "0")}`;
+      document.getElementById("calTitle").textContent = `${year}년 ${month}월 축제 달력`;
+      document.getElementById("calSub").textContent = "날짜를 눌러 당일 열리는 축제 목록을 확인하세요";
+
+      if (!state.selectedDate.startsWith(`${yStr}${mStr}`)) {
+        state.selectedDate = `${yStr}${mStr}${String(Math.min(14, lastDate)).padStart(2, "0")}`;
       }
 
-      for (let i = 0; i < firstDayWeekday; i++) {
-        const emptyCell = document.createElement("div");
-        emptyCell.className = "empty-day min-h-[68px] sm:min-h-[82px] rounded-xl bg-gray-50/60";
-        grid.appendChild(emptyCell);
+      for (let i = 0; i < firstWd; i++) {
+        const empty = document.createElement("div");
+        empty.className = "cal-empty min-h-[62px] sm:min-h-[76px] rounded-xl bg-paper/60";
+        grid.appendChild(empty);
       }
 
-      for (let day = 1; day <= lastDate; day++) {
-        const dayPad = String(day).padStart(2, "0");
-        const dateStr = `${yearStr}${monthStr}${dayPad}`;
-        const weekdayIdx = new Date(year, month - 1, day).getDay();
-        const isSelected = state.selectedDate === dateStr;
-
-        const dayFestivals = filteredItems.filter(it => it.eventstartdate <= dateStr && dateStr <= it.eventenddate);
-        const count = dayFestivals.length;
+      for (let d = 1; d <= lastDate; d++) {
+        const dStr = `${yStr}${mStr}${String(d).padStart(2, "0")}`;
+        const wd = new Date(year, month - 1, d).getDay();
+        const isSel = state.selectedDate === dStr;
+        const dayFests = filtered.filter(it => it.eventstartdate <= dStr && dStr <= it.eventenddate);
 
         const cell = document.createElement("button");
         cell.type = "button";
-        cell.onclick = () => selectCalendarDate(dateStr);
-
-        let dateColor = "text-ink";
-        if (weekdayIdx === 0) dateColor = "text-rose-500";
-        if (weekdayIdx === 6) dateColor = "text-blue-500";
-
-        cell.className = `calendar-day relative min-h-[68px] sm:min-h-[82px] p-2 rounded-xl border text-left flex flex-col justify-between ${
-          isSelected ? "selected-day" : "border-pink-100/80 bg-white"
+        cell.onclick = () => { state.selectedDate = dStr; renderCalendar(filtered); };
+        cell.className = `cal-cell min-h-[62px] sm:min-h-[76px] p-2 rounded-xl border text-left flex flex-col justify-between ${
+          isSel ? "cal-selected" : "border-stone-200 bg-white"
         }`;
 
-        const badgeColor = count >= 3 ? "bg-amber-100 text-amber-800 border-amber-200" : "bg-blush text-roseDark border-pink-200";
-        const badgeHtml = count > 0
-          ? `<div class="w-full space-y-1">
-               <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] sm:text-xs font-bold border ${badgeColor}">🌷 ${count}개</span>
-               <p class="hidden sm:block text-[10px] text-gray-500 truncate font-medium">${dayFestivals[0].title}</p>
-             </div>`
-          : `<span class="text-[10px] text-gray-300">-</span>`;
+        const numColor = isSel ? "text-white" : wd === 0 ? "text-terracotta" : wd === 6 ? "text-pine" : "text-ink";
+        const pillClass = isSel
+          ? "bg-white/20 text-white"
+          : dayFests.length >= 3
+            ? "bg-orange-50 text-terracotta border border-orange-200"
+            : "bg-paper text-pine border border-stone-300";
+
+        const pill = dayFests.length > 0
+          ? `<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${pillClass}">${dayFests.length}개</span>`
+          : `<span class="text-[10px] opacity-30">·</span>`;
 
         cell.innerHTML = `
-          <div class="flex items-center justify-between w-full">
-            <span class="text-xs sm:text-sm font-extrabold ${dateColor}">${day}</span>
-            ${isSelected ? '<span class="w-2 h-2 rounded-full bg-coral"></span>' : ""}
+          <div class="flex justify-between items-center w-full">
+            <span class="text-xs font-extrabold ${numColor}">${d}</span>
           </div>
-          ${badgeHtml}
+          ${pill}
         `;
         grid.appendChild(cell);
       }
 
-      renderSelectedDateList();
+      renderFeed(filtered);
     }
 
-    function selectCalendarDate(dateStr) {
-      state.selectedDate = dateStr;
-      renderCalendar();
-    }
-
-    function renderSelectedDateList() {
-      const container = document.getElementById("festivalListContainer");
-      container.innerHTML = "";
-
-      const filteredItems = getFilteredItems();
-      let matched = filteredItems;
+    function renderFeed(filtered) {
+      const feed = document.getElementById("festivalFeed");
+      feed.innerHTML = "";
+      let list = filtered;
 
       if (state.currentMonth === "ALL_SEASONS") {
-        document.getElementById("selectedDateBadge").textContent = "전체 시즌 통합 목록";
-        document.getElementById("listPanelTitle").textContent = "조건에 맞는 전체 축제";
+        document.getElementById("selectedDatePill").textContent = "ALL SEASONS";
+        document.getElementById("feedTitle").textContent = "필터링된 전체 축제 목록";
       } else {
-        const dateStr = state.selectedDate;
-        const year = Number(dateStr.slice(0, 4));
-        const month = Number(dateStr.slice(4, 6));
-        const day = Number(dateStr.slice(6, 8));
-        const weekday = WEEKDAYS_KO[new Date(year, month - 1, day).getDay()];
-        document.getElementById("selectedDateBadge").textContent = `${year}년 ${month}월 ${day}일 (${weekday})`;
-        document.getElementById("listPanelTitle").textContent = "선택한 날짜의 축제 목록";
-        matched = filteredItems.filter(it => it.eventstartdate <= dateStr && dateStr <= it.eventenddate);
+        const dStr = state.selectedDate;
+        const wd = WEEKDAYS_KO[new Date(dStr.slice(0,4), dStr.slice(4,6)-1, dStr.slice(6,8)).getDay()];
+        document.getElementById("selectedDatePill").textContent = `${formatDateDot(dStr)} (${wd})`;
+        document.getElementById("feedTitle").textContent = "선택 날짜 축제 목록";
+        list = filtered.filter(it => it.eventstartdate <= dStr && dStr <= it.eventenddate);
       }
 
-      document.getElementById("selectedDateCount").textContent = `${matched.length}건`;
+      document.getElementById("feedCount").textContent = `${list.length}건`;
 
-      if (matched.length === 0) {
-        container.innerHTML = `
-          <div class="h-full min-h-[260px] flex flex-col items-center justify-center text-center p-6 rounded-2xl bg-blush/40 border border-dashed border-pink-200">
-            <span class="text-4xl mb-2">🍃</span>
-            <p class="text-sm font-bold text-ink">조건에 해당하는 축제가 없습니다</p>
-            <p class="text-xs text-gray-400 mt-1">다른 날짜나 검색어·지역 필터를 확인해 보세요!</p>
-          </div>
-        `;
+      if (list.length === 0) {
+        feed.innerHTML = `<div class="py-14 text-center text-sm text-muted border border-dashed border-stone-300 rounded-2xl bg-paper/50">조건에 맞는 축제가 없습니다 🍃</div>`;
         return;
       }
 
-      const posterGradients = [
-        "from-pink-200 via-rose-100 to-amber-100",
-        "from-amber-100 via-orange-100 to-pink-100",
-        "from-teal-100 via-emerald-50 to-pink-100",
-        "from-purple-100 via-pink-100 to-rose-100"
-      ];
+      list.forEach(it => {
+        const reg = AREA_MAP[String(it.areacode)] || "전국";
+        const theme = classifyTheme(it.title);
+        const days = calcDays(it.eventstartdate, it.eventenddate);
 
-      matched.forEach((item, index) => {
-        const regionName = AREA_MAP[String(item.areacode)] || "전국";
-        const periodText = `${formatDateDot(item.eventstartdate)} ~ ${formatDateDot(item.eventenddate)}`;
-        const duration = calcDurationDays(item.eventstartdate, item.eventenddate);
-        const gradClass = posterGradients[index % posterGradients.length];
-
-        const thumbnailHtml = item.firstimage
-          ? `<img src="${item.firstimage}" alt="${item.title}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" class="w-20 h-24 sm:w-24 sm:h-28 object-cover rounded-xl shrink-0 border border-pink-100" />
-             <div style="display:none;" class="w-20 h-24 sm:w-24 sm:h-28 rounded-xl bg-gradient-to-br ${gradClass} shrink-0 flex flex-col items-center justify-center text-center p-2 border border-pink-100">
-               <span class="text-2xl">🎪</span>
-               <span class="text-[10px] font-bold text-roseDark mt-1">${regionName}</span>
-             </div>`
-          : `<div class="w-20 h-24 sm:w-24 sm:h-28 rounded-xl bg-gradient-to-br ${gradClass} shrink-0 flex flex-col items-center justify-center text-center p-2 border border-pink-100">
-               <span class="text-2xl">🌷</span>
-               <span class="text-[10px] font-bold text-roseDark mt-1">${regionName}</span>
-             </div>`;
-
-        const card = document.createElement("article");
-        card.className = "animate-fade-up p-3.5 rounded-2xl border border-pink-100 bg-cream/70 hover:bg-white hover:border-coral/50 hover:shadow-md transition flex gap-3.5 items-start";
+        const card = document.createElement("button");
+        card.type = "button";
+        card.onclick = () => openDetailModal(it);
+        card.className = "w-full text-left p-4 rounded-2xl bg-paper/70 hover:bg-white border border-stone-200 hover:border-pine transition space-y-1.5 group";
         card.innerHTML = `
-          ${thumbnailHtml}
-          <div class="flex-1 min-w-0">
-            <div class="flex flex-wrap items-center gap-1.5 mb-1">
-              <span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-blush text-roseDark">${regionName}</span>
-              <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-teal-50 text-teal-700">${duration}일간 진행</span>
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-white border border-stone-300 text-pine">${reg}</span>
+              <span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-orange-50 border border-orange-200 text-terracotta">${theme}</span>
+              <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-stone-200/70 text-ink">${days}일간</span>
             </div>
-            <h3 class="text-sm sm:text-base font-extrabold text-ink leading-snug line-clamp-2">${item.title}</h3>
-            <p class="text-xs font-semibold text-coral mt-1.5 flex items-center gap-1"><span>📅</span><span>${periodText}</span></p>
-            <p class="text-xs text-gray-500 mt-1 truncate flex items-center gap-1" title="${item.addr1 || ''}"><span>📍</span><span>${item.addr1 || "장소 정보 업데이트 예정"}</span></p>
+            <span class="text-xs font-bold text-stone-400 group-hover:text-pine">상세 →</span>
           </div>
+          <h3 class="font-serif text-base font-bold text-ink leading-snug">${it.title}</h3>
+          <p class="text-xs text-pine font-semibold">📅 ${formatDateDot(it.eventstartdate)} ~ ${formatDateDot(it.eventenddate)}</p>
+          <p class="text-xs text-muted truncate">📍 ${it.addr1 || "장소 정보 없음"}</p>
         `;
-        container.appendChild(card);
+        feed.appendChild(card);
       });
     }
 
-    function setRegionFilter(regionCode) {
-      state.selectedRegion = String(regionCode);
-      document.getElementById("regionSelect").value = state.selectedRegion;
-      updateResetButtonState();
-      updateDashboard();
-      renderCalendar();
+    function openDetailModal(item) {
+      const reg = AREA_MAP[String(item.areacode)] || "전국";
+      const theme = classifyTheme(item.title);
+      const days = calcDays(item.eventstartdate, item.eventenddate);
+
+      document.getElementById("modalRegion").textContent = reg;
+      document.getElementById("modalTheme").textContent = theme;
+      document.getElementById("modalTitle").textContent = item.title;
+      document.getElementById("modalPeriod").textContent = `${formatDateDot(item.eventstartdate)} ~ ${formatDateDot(item.eventenddate)} (${days}일간)`;
+      document.getElementById("modalAddr").textContent = item.addr1 || "상세 주소 미제공";
+      document.getElementById("modalTel").textContent = item.tel || "문의처 정보 없음";
+      document.getElementById("modalMapLink").href = `https://map.naver.com/p/search/${encodeURIComponent(item.addr1 || item.title)}`;
+
+      document.getElementById("detailModal").classList.remove("hidden");
     }
 
-    function changeMonth(newMonth) {
-      state.currentMonth = newMonth;
-      document.getElementById("monthSelect").value = newMonth;
-      const apiKey = document.getElementById("apiKeyInput").value.trim();
-      if (state.isLiveMode && apiKey && newMonth !== "ALL_SEASONS") {
-        fetchTourApiFestivals(apiKey);
-      } else {
-        updateDashboard();
-        renderCalendar();
-      }
+    function closeDetailModal() {
+      document.getElementById("detailModal").classList.add("hidden");
     }
 
-    async function fetchTourApiFestivals(rawKey) {
-      const spinner = document.getElementById("fetchBtnSpinner");
-      const btn = document.getElementById("fetchLiveApiBtn");
-      spinner.classList.remove("hidden");
-      btn.disabled = true;
+    function changeMonth(ym) {
+      state.currentMonth = ym;
+      document.getElementById("monthSelect").value = ym;
+      const key = document.getElementById("apiKeyInput").value.trim();
+      if (state.isLiveMode && key && ym !== "ALL_SEASONS") fetchTourApi(key);
+      else renderAll();
+    }
 
+    async function fetchTourApi(rawKey) {
       try {
-        if (state.currentMonth === "ALL_SEASONS") changeMonth("2026-11");
-        const [yearStr, monthStr] = state.currentMonth.split("-");
-        const lastDay = new Date(Number(yearStr), Number(monthStr), 0).getDate();
-        const eventStartDate = `${yearStr}${monthStr}01`;
-        const eventEndDate = `${yearStr}${monthStr}${String(lastDay).padStart(2, "0")}`;
-        const encodedKey = rawKey.includes("%") ? rawKey : encodeURIComponent(rawKey);
-        const url = `https://apis.data.go.kr/B551011/KorService2/searchFestival2?serviceKey=${encodedKey}&numOfRows=100&pageNo=1&MobileOS=ETC&MobileApp=FestivalCalendar&_type=json&arrange=A&eventStartDate=${eventStartDate}&eventEndDate=${eventEndDate}`;
+        if (state.currentMonth === "ALL_SEASONS") state.currentMonth = "2026-11";
+        const [y, m] = state.currentMonth.split("-");
+        const last = new Date(Number(y), Number(m), 0).getDate();
+        const encoded = rawKey.includes("%") ? rawKey : encodeURIComponent(rawKey);
+        const url = `https://apis.data.go.kr/B551011/KorService2/searchFestival2?serviceKey=${encoded}&numOfRows=100&pageNo=1&MobileOS=ETC&MobileApp=FestivalEditorial&_type=json&arrange=A&eventStartDate=${y}${m}01&eventEndDate=${y}${m}${String(last).padStart(2,"0")}`;
 
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP 오류 (${response.status})`);
-        const json = await response.json();
-        const header = json?.response?.header;
-        if (header && header.resultCode !== "0000") throw new Error(header.resultMsg || "API 오류");
-
-        const rawItems = json?.response?.body?.items?.item;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        const raw = json?.response?.body?.items?.item;
         state.isLiveMode = true;
-        state.liveItems = Array.isArray(rawItems) ? rawItems : rawItems ? [rawItems] : [];
-
-        const badge = document.getElementById("dataSourceBadge");
-        badge.textContent = "실시간 TourAPI 연동됨";
-        badge.className = "px-2 py-0.5 rounded-full bg-teal-600 text-white font-bold";
-
-        updateDashboard();
-        renderCalendar();
-        showToast(`🎉 실시간 축제 데이터 ${state.liveItems.length}건을 불러왔습니다!`, "success");
+        state.liveItems = Array.isArray(raw) ? raw : raw ? [raw] : [];
+        document.getElementById("sourceBadge").textContent = `LIVE ${state.liveItems.length}`;
+        document.getElementById("sourceBadge").className = "text-[11px] font-bold px-2 py-0.5 rounded-full bg-pine text-white";
+        renderAll();
+        showToast(`실시간 축제 ${state.liveItems.length}건을 불러왔습니다!`, "success");
       } catch (err) {
-        showToast(`API 연동 실패: ${err.message}`, "error");
-      } finally {
-        spinner.classList.add("hidden");
-        btn.disabled = false;
+        showToast(`API 호출 실패: ${err.message}`, "error");
       }
     }
 
     window.addEventListener("DOMContentLoaded", () => {
-      const monthSelect = document.getElementById("monthSelect");
-      const regionSelect = document.getElementById("regionSelect");
-      const searchInput = document.getElementById("searchInput");
-      const clearSearchBtn = document.getElementById("clearSearchBtn");
-      const resetFilterBtn = document.getElementById("resetFilterBtn");
+      document.getElementById("enterDashboardBtn").addEventListener("click", () => enterDashboard());
+      document.getElementById("backToCoverBtn").addEventListener("click", backToCover);
 
-      monthSelect.addEventListener("change", (e) => changeMonth(e.target.value));
+      document.getElementById("closeModalBtn").addEventListener("click", closeDetailModal);
+      document.getElementById("modalConfirmBtn").addEventListener("click", closeDetailModal);
+      document.getElementById("detailModal").addEventListener("click", (e) => {
+        if (e.target.id === "detailModal") closeDetailModal();
+      });
+
+      const mSel = document.getElementById("monthSelect");
+      mSel.addEventListener("change", e => changeMonth(e.target.value));
       document.getElementById("prevMonthBtn").addEventListener("click", () => {
-        if (monthSelect.selectedIndex > 0) changeMonth(monthSelect.options[monthSelect.selectedIndex - 1].value);
+        if (mSel.selectedIndex > 0) changeMonth(mSel.options[mSel.selectedIndex - 1].value);
       });
       document.getElementById("nextMonthBtn").addEventListener("click", () => {
-        if (monthSelect.selectedIndex < monthSelect.options.length - 1) changeMonth(monthSelect.options[monthSelect.selectedIndex + 1].value);
+        if (mSel.selectedIndex < mSel.options.length - 1) changeMonth(mSel.options[mSel.selectedIndex + 1].value);
       });
 
-      regionSelect.addEventListener("change", (e) => setRegionFilter(e.target.value));
-
-      searchInput.addEventListener("input", (e) => {
+      document.getElementById("searchInput").addEventListener("input", e => {
         state.searchKeyword = e.target.value;
-        clearSearchBtn.classList.toggle("hidden", !state.searchKeyword);
-        clearSearchBtn.classList.toggle("flex", !!state.searchKeyword);
-        updateResetButtonState();
-        updateDashboard();
-        renderCalendar();
+        renderAll();
       });
 
-      clearSearchBtn.addEventListener("click", () => {
-        searchInput.value = "";
+      document.getElementById("resetAllBtn").addEventListener("click", () => {
+        state.selectedRegion = "ALL";
+        state.selectedTheme = "ALL";
         state.searchKeyword = "";
-        clearSearchBtn.classList.add("hidden");
-        updateResetButtonState();
-        updateDashboard();
-        renderCalendar();
+        document.getElementById("searchInput").value = "";
+        renderAll();
+        showToast("필터가 초기화되었습니다.");
       });
 
-      resetFilterBtn.addEventListener("click", () => {
-        searchInput.value = "";
-        state.searchKeyword = "";
-        clearSearchBtn.classList.add("hidden");
-        setRegionFilter("ALL");
-        showToast("모든 필터가 초기화되었습니다.");
+      document.getElementById("apiToggleBtn").addEventListener("click", () => {
+        const body = document.getElementById("apiBody");
+        const arr = document.getElementById("apiArrow");
+        const hidden = body.classList.toggle("hidden");
+        arr.style.transform = hidden ? "rotate(0deg)" : "rotate(180deg)";
       });
 
-      const toggleApiBtn = document.getElementById("toggleApiPanelBtn");
-      const apiBody = document.getElementById("apiPanelBody");
-      const apiChevron = document.getElementById("apiPanelChevron");
-      toggleApiBtn.addEventListener("click", () => {
-        const isHidden = apiBody.classList.contains("hidden");
-        apiBody.classList.toggle("hidden");
-        apiChevron.style.transform = isHidden ? "rotate(180deg)" : "rotate(0deg)";
-      });
-
-      document.getElementById("fetchLiveApiBtn").addEventListener("click", () => {
+      document.getElementById("fetchApiBtn").addEventListener("click", () => {
         const key = document.getElementById("apiKeyInput").value.trim();
         if (!key) return showToast("인증키를 입력해 주세요.", "error");
-        fetchTourApiFestivals(key);
+        fetchTourApi(key);
       });
 
-      document.getElementById("restoreSampleBtn").addEventListener("click", () => {
+      document.getElementById("restoreBtn").addEventListener("click", () => {
         state.isLiveMode = false;
         state.liveItems = [];
-        const badge = document.getElementById("dataSourceBadge");
-        badge.textContent = "샘플 데이터 모드";
-        badge.className = "px-2 py-0.5 rounded-full bg-white text-coral border border-pink-200";
-        updateDashboard();
-        renderCalendar();
+        document.getElementById("sourceBadge").textContent = "SAMPLE 50";
+        document.getElementById("sourceBadge").className = "text-[11px] font-bold px-2 py-0.5 rounded-full bg-paper border border-stone-300 text-pine";
+        renderAll();
         showToast("샘플 데이터로 복원했습니다.");
       });
-
-      updateDashboard();
-      renderCalendar();
     });
   </script>
 </body>
